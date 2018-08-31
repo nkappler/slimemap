@@ -20,5 +20,11 @@
   "bugs": {
     "url": "https://github.com/nkappler/slimemap/issues"
   },
-  "homepage": "https://github.com/nkappler/slimemap#readme"
+  "homepage": "https://github.com/nkappler/slimemap#readme",
+  "dependencies": {
+    "awesome-typescript-loader": "^5.2.0",
+    "typescript": "^3.0.3",
+    "webpack": "^4.17.1",
+    "webpack-cli": "^3.1.0"
+  }
 }
