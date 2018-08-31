@@ -1,60 +1,64 @@
-declare const bigInt: any;
-// const bigInt = require("bigInt");
+import bigInt, { BigInteger, BigNumber } from "../node_modules/big-integer";
 
 /**
- * minified seededRandom as in Java
+ * partial seededRandom as in Java
  */
 export class SeededRandom {
-    private multiplier: number;
-    private seed: any;
+    private multiplier: BigInteger;
+    private seed: BigInteger;
     private addend: any;
     private mask: any;
 
-    constructor(initseed?: number) {
-        if (initseed === undefined) initseed = Date.now();
-        this.seed = bigInt(initseed);
-        this.seed = this.initialScramble(this.seed);
+    public constructor(initseed: number | string = Date.now()) {
+        this.seed = bigInt(initseed as number);
         this.multiplier = bigInt("5DEECE66D", 16);
         this.addend = bigInt("B", 16);
         this.mask = bigInt("281474976710655");
         this.seed = this.initialScramble(this.seed);
+        this.seed = this.initialScramble(this.seed);
     }
 
-    private initialScramble(seed: typeof bigInt) {
-        var temp = seed.TwosCompXor(this.multiplier, 64);
-        return temp.TwosCompAnd(this.mask, 64);
-    };
+    private initialScramble(seed: BigInteger) {
+        const temp = seed.xor(this.multiplier);
+        return temp.and(this.mask);
+    }
 
-    private setSeed(newseed: typeof bigInt) {
+    private setSeed(newseed: BigInteger) {
         this.seed = this.initialScramble(newseed);
-    };
+    }
 
-    private next(bits: number) {
-        var oldseed = this.seed;
-        var nextseed = oldseed.multiply(this.multiplier).add(this.addend).TwosCompAnd(this.mask);
+    private next(bits: BigNumber) {
+        const oldseed = this.seed;
+        const nextseed = oldseed.multiply(this.multiplier).add(this.addend).and(this.mask);
         this.seed = nextseed;
-        return Math.floor(nextseed.shiftRight(48 - bits));
-    };
+        return Math.floor((nextseed.shiftRight((48 - (bits as any)) as any) as any));
+    }
 
-    public nextInt(bound: typeof bigInt) {
-        if (bound <= 0)
+    public nextInt(b: any) {
+        let bound = b;
+        if (bound <= 0) {
             bound *= -1;
+        }
 
-        var r = this.next(31);
-        var m = bound - 1;
-        if ((bound & m) === 0)  // i.e., bound is a power of 2
+        let r = this.next(31);
+        const m = bound - 1;
+        // tslint:disable-next-line:no-bitwise
+        if ((bound & m) === 0) { // i.e., bound is a power of 2 { {
+            // tslint:disable-next-line:no-bitwise
             r = Math.floor((bound * r) >> 31);
+
+        }
         else {
-            for (var u = r;
+            for (let u = r;
+                // tslint:disable-next-line:no-conditional-assignment
                 u - (r = u % bound) + m < 0;
-                u = this.next(31))
-                ;
+                u = this.next(31)) {/**/ }
         }
         return r;
-    };
+    }
 
     public getSeed() {
         return this.seed;
-    };
+    }
 
-};
+}

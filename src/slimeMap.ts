@@ -1,17 +1,9 @@
-import * as bigInt from "./BigInteger";
+// import * as bigInt from "./BigInteger";
+import bigInt, { BigInteger } from "../node_modules/big-integer";
 import { SeededRandom } from "./seededRandom";
 
-export class SlimeM {
-    private seed: SeededRandom;
-
-    public constructor() {
-        this.seed = new SeededRandom();
-    }
-
-}
-
-export class SlimeMap {
-    private seed: number = 0;
+class SlimeMap {
+    private seed: BigInteger = bigInt(1234);
     private height = 0;
     private width = 0;
     private xPos = 0;
@@ -118,12 +110,12 @@ export class SlimeMap {
     private isSlimeChunk(vec) {
         const xPos = vec[0];
         const zPos = vec[1];
-        let tempseed = new bigInt("4987142").multiply(xPos).multiply(xPos);
-        tempseed = tempseed.add(new bigInt("5947611").multiply(xPos));
-        tempseed = tempseed.add(new bigInt("4392871").multiply(zPos).multiply(zPos));
-        tempseed = tempseed.add(new bigInt("389711").multiply(zPos));
-        tempseed = (this.seed as any).add(tempseed);
-        tempseed = tempseed.TwosCompXor(new bigInt("987234911"));
+        let tempseed = bigInt("4987142").multiply(xPos).multiply(xPos);
+        tempseed = tempseed.add(bigInt("5947611").multiply(xPos));
+        tempseed = tempseed.add(bigInt("4392871").multiply(zPos).multiply(zPos));
+        tempseed = tempseed.add(bigInt("389711").multiply(zPos));
+        tempseed = this.seed.add(tempseed);
+        tempseed = tempseed.xor(bigInt("987234911"));
 
         const rnd = new SeededRandom(tempseed.toString());
         return (rnd.nextInt(10) === 0);

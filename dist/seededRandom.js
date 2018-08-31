@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var bigInt = require("bigInt");
+// const bigInt = require("bigInt");
 /**
  * minified seededRandom as in Java
  */
