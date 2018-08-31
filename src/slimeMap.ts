@@ -1,4 +1,3 @@
-// import * as bigInt from "./BigInteger";
 import bigInt, { BigInteger } from "../node_modules/big-integer";
 import { SeededRandom } from "./seededRandom";
 

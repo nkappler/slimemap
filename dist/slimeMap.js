@@ -1,25 +1,14 @@
 "use strict";
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var bigInt = __importStar(require("./BigInteger"));
+var big_integer_1 = __importDefault(require("../node_modules/big-integer"));
 var seededRandom_1 = require("./seededRandom");
-var SlimeM = /** @class */ (function () {
-    function SlimeM() {
-        this.seed = new seededRandom_1.SeededRandom();
-    }
-    return SlimeM;
-}());
-exports.SlimeM = SlimeM;
 var SlimeMap = /** @class */ (function () {
     function SlimeMap(id) {
         var _this = this;
-        this.seed = 0;
+        this.seed = big_integer_1.default(1234);
         this.height = 0;
         this.width = 0;
         this.xPos = 0;
@@ -113,12 +102,12 @@ var SlimeMap = /** @class */ (function () {
     SlimeMap.prototype.isSlimeChunk = function (vec) {
         var xPos = vec[0];
         var zPos = vec[1];
-        var tempseed = new bigInt("4987142").multiply(xPos).multiply(xPos);
-        tempseed = tempseed.add(new bigInt("5947611").multiply(xPos));
-        tempseed = tempseed.add(new bigInt("4392871").multiply(zPos).multiply(zPos));
-        tempseed = tempseed.add(new bigInt("389711").multiply(zPos));
+        var tempseed = big_integer_1.default("4987142").multiply(xPos).multiply(xPos);
+        tempseed = tempseed.add(big_integer_1.default("5947611").multiply(xPos));
+        tempseed = tempseed.add(big_integer_1.default("4392871").multiply(zPos).multiply(zPos));
+        tempseed = tempseed.add(big_integer_1.default("389711").multiply(zPos));
         tempseed = this.seed.add(tempseed);
-        tempseed = tempseed.TwosCompXor(new bigInt("987234911"));
+        tempseed = tempseed.xor(big_integer_1.default("987234911"));
         var rnd = new seededRandom_1.SeededRandom(tempseed.toString());
         return (rnd.nextInt(10) === 0);
         //see http://minecraft-de.gamepedia.com/Schleim?cookieSetup=true#Spawning_in_speziellen_Chunks
@@ -551,7 +540,6 @@ var SlimeMap = /** @class */ (function () {
     };
     return SlimeMap;
 }());
-exports.SlimeMap = SlimeMap;
 function onload() {
     if (document.readyState === "interactive") {
         var sm = new SlimeMap("slimemap-canvas");
