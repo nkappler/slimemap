@@ -3,12 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var big_integer_1 = __importDefault(require("../node_modules/big-integer"));
-var seededRandom_1 = require("./seededRandom");
+var long_1 = __importDefault(require("long"));
+var slimeChunk_1 = require("./slimeChunk");
 var SlimeMap = /** @class */ (function () {
     function SlimeMap(id) {
         var _this = this;
-        this.seed = big_integer_1.default(1234);
+        this.seed = new long_1.default(1234);
         this.height = 0;
         this.width = 0;
         this.xPos = 0;
@@ -98,19 +98,6 @@ var SlimeMap = /** @class */ (function () {
         v[2] = Math.ceil(this.vp[2] / 16) + this.chunkbuffer;
         v[3] = Math.ceil(this.vp[3] / 16) + this.chunkbuffer;
         return v;
-    };
-    SlimeMap.prototype.isSlimeChunk = function (vec) {
-        var xPos = vec[0];
-        var zPos = vec[1];
-        var tempseed = big_integer_1.default("4987142").multiply(xPos).multiply(xPos);
-        tempseed = tempseed.add(big_integer_1.default("5947611").multiply(xPos));
-        tempseed = tempseed.add(big_integer_1.default("4392871").multiply(zPos).multiply(zPos));
-        tempseed = tempseed.add(big_integer_1.default("389711").multiply(zPos));
-        tempseed = this.seed.add(tempseed);
-        tempseed = tempseed.xor(big_integer_1.default("987234911"));
-        var rnd = new seededRandom_1.SeededRandom(tempseed.toString());
-        return (rnd.nextInt(10) === 0);
-        //see http://minecraft-de.gamepedia.com/Schleim?cookieSetup=true#Spawning_in_speziellen_Chunks
     };
     SlimeMap.prototype.update = function () {
         if (!this.ctx) {
@@ -243,7 +230,7 @@ var SlimeMap = /** @class */ (function () {
         var Cols = Math.abs(this.chunkvp[1]) + Math.abs(this.chunkvp[3]);
         for (var i = 0; i < Cols; i++) {
             var mapChunkPos = this.getMapChunkPos(new Array(i, 0));
-            var isSC = this.isSlimeChunk(new Array(mapChunkPos[0], row));
+            var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos[0], y: row }, this.seed);
             var hash = JSON.stringify(mapChunkPos);
             this.slimechunks[hash] = isSC;
         }
@@ -262,7 +249,7 @@ var SlimeMap = /** @class */ (function () {
         var Rows = Math.abs(this.chunkvp[0]) + Math.abs(this.chunkvp[2]);
         for (var i = 0; i < Rows; i++) {
             var mapChunkPos = this.getMapChunkPos(new Array(0, i));
-            var isSC = this.isSlimeChunk(new Array(col, mapChunkPos[1]));
+            var isSC = slimeChunk_1.isSlimeChunk({ x: col, y: mapChunkPos[1] }, this.seed);
             var hash = JSON.stringify(mapChunkPos);
             this.slimechunks[hash] = isSC;
         }
@@ -284,7 +271,7 @@ var SlimeMap = /** @class */ (function () {
         for (var i = 0; i < ChunksCountX; i++) {
             for (var j = 0; j < ChunksCountZ; j++) {
                 var mapChunkPos = this.getMapChunkPos(new Array(i, j));
-                var isSC = this.isSlimeChunk(mapChunkPos);
+                var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos[0], y: mapChunkPos[1] }, this.seed);
                 var hash = JSON.stringify(mapChunkPos);
                 this.slimechunks[hash] = isSC;
             }
@@ -307,7 +294,7 @@ var SlimeMap = /** @class */ (function () {
                 var mapChunkPos = this.getMapChunkPos(new Array(i, j));
                 var key = JSON.stringify(mapChunkPos);
                 if (this.slimechunks[key] === undefined) {
-                    this.slimechunks[key] = this.isSlimeChunk(mapChunkPos);
+                    this.slimechunks[key] = slimeChunk_1.isSlimeChunk({ x: mapChunkPos[0], y: mapChunkPos[1] }, this.seed);
                 }
                 if (this.slimechunks[key]) {
                     var vec = mapChunkPos;

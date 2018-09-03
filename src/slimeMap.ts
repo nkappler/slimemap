@@ -1,8 +1,12 @@
-import bigInt, { BigInteger } from "../node_modules/big-integer";
-import { SeededRandom } from "./seededRandom";
+import Long from "long";
+import { isSlimeChunk } from "./slimeChunk";
 
+export interface Vector2 {
+    x: number;
+    y: number;
+}
 class SlimeMap {
-    private seed: BigInteger = bigInt(1234);
+    private seed: Long = new Long(1234);
     private height = 0;
     private width = 0;
     private xPos = 0;
@@ -104,21 +108,6 @@ class SlimeMap {
         v[2] = Math.ceil(this.vp[2] / 16) + this.chunkbuffer;
         v[3] = Math.ceil(this.vp[3] / 16) + this.chunkbuffer;
         return v;
-    }
-
-    private isSlimeChunk(vec) {
-        const xPos = vec[0];
-        const zPos = vec[1];
-        let tempseed = bigInt("4987142").multiply(xPos).multiply(xPos);
-        tempseed = tempseed.add(bigInt("5947611").multiply(xPos));
-        tempseed = tempseed.add(bigInt("4392871").multiply(zPos).multiply(zPos));
-        tempseed = tempseed.add(bigInt("389711").multiply(zPos));
-        tempseed = this.seed.add(tempseed);
-        tempseed = tempseed.xor(bigInt("987234911"));
-
-        const rnd = new SeededRandom(tempseed.toString());
-        return (rnd.nextInt(10) === 0);
-        //see http://minecraft-de.gamepedia.com/Schleim?cookieSetup=true#Spawning_in_speziellen_Chunks
     }
 
     private update() {
@@ -261,7 +250,7 @@ class SlimeMap {
         const Cols = Math.abs(this.chunkvp[1]) + Math.abs(this.chunkvp[3]);
         for (let i = 0; i < Cols; i++) {
             const mapChunkPos = this.getMapChunkPos(new Array(i, 0));
-            const isSC = this.isSlimeChunk(new Array(mapChunkPos[0], row));
+            const isSC = isSlimeChunk({ x: mapChunkPos[0], y: row }, this.seed);
             const hash = JSON.stringify(mapChunkPos);
             this.slimechunks[hash] = isSC;
         }
@@ -280,7 +269,7 @@ class SlimeMap {
         const Rows = Math.abs(this.chunkvp[0]) + Math.abs(this.chunkvp[2]);
         for (let i = 0; i < Rows; i++) {
             const mapChunkPos = this.getMapChunkPos(new Array(0, i));
-            const isSC = this.isSlimeChunk(new Array(col, mapChunkPos[1]));
+            const isSC = isSlimeChunk({ x: col, y: mapChunkPos[1] }, this.seed);
             const hash = JSON.stringify(mapChunkPos);
             this.slimechunks[hash] = isSC;
         }
@@ -304,7 +293,7 @@ class SlimeMap {
         for (let i = 0; i < ChunksCountX; i++) {
             for (let j = 0; j < ChunksCountZ; j++) {
                 const mapChunkPos = this.getMapChunkPos(new Array(i, j));
-                const isSC = this.isSlimeChunk(mapChunkPos);
+                const isSC = isSlimeChunk({ x: mapChunkPos[0], y: mapChunkPos[1] }, this.seed);
                 const hash = JSON.stringify(mapChunkPos);
 
                 this.slimechunks[hash] = isSC;
@@ -331,7 +320,7 @@ class SlimeMap {
             for (let j = 0; j < ChunksCountZ; j++) {
                 const mapChunkPos = this.getMapChunkPos(new Array(i, j));
                 const key = JSON.stringify(mapChunkPos);
-                if (this.slimechunks[key] === undefined) { this.slimechunks[key] = this.isSlimeChunk(mapChunkPos); }
+                if (this.slimechunks[key] === undefined) { this.slimechunks[key] = isSlimeChunk({ x: mapChunkPos[0], y: mapChunkPos[1] }, this.seed); }
                 if (this.slimechunks[key]) {
                     const vec = mapChunkPos;
                     vec[0] *= 16;
