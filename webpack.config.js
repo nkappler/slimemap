@@ -1,5 +1,6 @@
 module.exports = {
     entry: "./src/slimeMap.ts",
+    watch: true,
     output: {
         filename: "bundle.js",
         path: __dirname + "/dist"

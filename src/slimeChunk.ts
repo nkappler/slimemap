@@ -1,6 +1,6 @@
 import Long from "long";
 import { NSeededRandom } from "./seededRandom";
-import { Vector2 } from "./slimeMap";
+import { Vector2D } from "./slimeMap";
 
 const base = new Long(4987142);
 const addend1 = new Long(5947611);
@@ -8,7 +8,7 @@ const addend2 = new Long(4392871);
 const addend3 = new Long(389711);
 const mask = new Long(987234911);
 
-export function isSlimeChunk(chunk: Vector2, seed: Long) {
+export function isSlimeChunk(chunk: Vector2D, seed: Long) {
     const xPos = chunk.x;
     const zPos = chunk.y;
     const tempseed = base.multiply(xPos).multiply(xPos)

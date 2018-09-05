@@ -1,31 +1,41 @@
 "use strict";
+var __assign = (this && this.__assign) || Object.assign || function(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+    }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var long_1 = __importDefault(require("long"));
 var slimeChunk_1 = require("./slimeChunk");
+var origin = { x: 0, y: 0 };
 var SlimeMap = /** @class */ (function () {
-    function SlimeMap(id) {
+    function SlimeMap(id, seed) {
         var _this = this;
-        this.seed = new long_1.default(1234);
         this.height = 0;
         this.width = 0;
         this.xPos = 0;
         this.yPos = 0;
-        this.mousePos = new Array(2);
+        this.mousePos = __assign({}, origin);
         this.zoom = 2.5;
         this.minzoom = 0.7;
         this.maxzoom = 5;
         this.chunkbuffer = 3;
+        this.slimechunks = {};
         this.borderleft = 70;
         this.bordertop = 50;
         this.borderbottom = 20;
         this.borderright = 20;
         this.grabbed = false;
-        this.grabbedCoord = new Array(2);
+        this.grabbedCoord = __assign({}, origin);
         this.ctx = null;
         this.canvas = document.getElementById(id);
+        this.seed = !!seed ? long_1.fromString(seed) : new long_1.default(Date.now());
         this.initCanvas(id);
         this.update();
         this.drawStaticUI();
@@ -34,11 +44,10 @@ var SlimeMap = /** @class */ (function () {
         this.initSlimeChunks();
         this.redraw();
         this.canvas.onmousemove = function (event) {
-            _this.mousePos[0] = event.layerX;
-            _this.mousePos[1] = event.layerY;
+            _this.mousePos = { x: event.layerX, y: event.layerY };
             _this.onMouseMove();
         };
-        this.canvas.onmousedown = function (event) {
+        this.canvas.onmousedown = function (_event) {
             var vec = _this.getMapCoord(_this.mousePos);
             if (vec) {
                 _this.grabbed = true;
@@ -46,7 +55,7 @@ var SlimeMap = /** @class */ (function () {
                 _this.grabbedCoord = vec;
             }
         };
-        this.canvas.onmouseup = function (event) {
+        this.canvas.onmouseup = function (_event) {
             _this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
             _this.grabbed = false;
         };
@@ -92,11 +101,11 @@ var SlimeMap = /** @class */ (function () {
         }
     };
     SlimeMap.prototype.chunkviewport = function () {
-        var v = new Array(4);
-        v[0] = Math.ceil(this.vp[0] / 16) - this.chunkbuffer;
-        v[1] = Math.ceil(this.vp[1] / 16) - this.chunkbuffer;
-        v[2] = Math.ceil(this.vp[2] / 16) + this.chunkbuffer;
-        v[3] = Math.ceil(this.vp[3] / 16) + this.chunkbuffer;
+        var v = {};
+        v.x1 = Math.ceil(this.vp.x1 / 16) - this.chunkbuffer;
+        v.y1 = Math.ceil(this.vp.y1 / 16) - this.chunkbuffer;
+        v.x2 = Math.ceil(this.vp.x2 / 16) + this.chunkbuffer;
+        v.y2 = Math.ceil(this.vp.y2 / 16) + this.chunkbuffer;
         return v;
     };
     SlimeMap.prototype.update = function () {
@@ -113,32 +122,32 @@ var SlimeMap = /** @class */ (function () {
         if (vec) {
             if (this.grabbed) {
                 this.canvas.setAttribute("style", "cursor: grabbing; cursor: -webkit-grabbing");
-                var offsetX = this.grabbedCoord[0] - this.xPos;
-                var offsetY = this.grabbedCoord[1] - this.yPos;
-                this.xPos = vec[0] - offsetX;
-                this.yPos = vec[1] - offsetY;
+                var offsetX = this.grabbedCoord.x - this.xPos;
+                var offsetY = this.grabbedCoord.y - this.yPos;
+                this.xPos = vec.x - offsetX;
+                this.yPos = vec.y - offsetY;
                 this.redraw();
             }
             else if (this.ctx) {
                 this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
                 this.ctx.font = "15px MyriadPro";
                 this.ctx.fillStyle = "#000000";
-                this.ctx.fillText("X: " + vec[0].toFixed(1) + "    Z: " + vec[1].toFixed(1), this.borderleft, this.height - this.borderbottom + 15);
-                var Chunk = new Array(2);
-                Chunk[0] = Math.floor(vec[0] / 16);
-                Chunk[1] = Math.floor(vec[1] / 16);
-                var Slimes = (this.slimechunks["[" + Chunk[0] + "," + Chunk[1] + "]"]) ? "ja" : "nein";
+                this.ctx.fillText("X: " + vec.x.toFixed(1) + "    Z: " + vec.y.toFixed(1), this.borderleft, this.height - this.borderbottom + 15);
+                var Chunk = __assign({}, origin);
+                Chunk.x = Math.floor(vec.x / 16);
+                Chunk.y = Math.floor(vec.y / 16);
+                var Slimes = (this.slimechunks["[" + Chunk.x + "," + Chunk.y + "]"]) ? "ja" : "nein";
                 this.ctx.fillText("Slimes: " + Slimes, this.borderleft + 200, this.height - this.borderbottom + 15);
-                var From = new Array(2);
-                From[0] = Chunk[0] * 16;
-                From[1] = Chunk[1] * 16;
-                var To = new Array(2);
-                To[0] = (Chunk[0] + 1) * 16 - 1;
-                To[1] = (Chunk[1] + 1) * 16 - 1;
+                var From = __assign({}, origin);
+                From.x = Chunk.x * 16;
+                From.y = Chunk.y * 16;
+                var To = __assign({}, origin);
+                To.x = (Chunk.x + 1) * 16 - 1;
+                To.y = (Chunk.y + 1) * 16 - 1;
                 this.ctx.textAlign = "end";
-                this.ctx.fillText("Chunk: ( " + Chunk[0] + " / " + Chunk[1] + " )  im Bereich von: ( " +
-                    From[0] + " / " + From[1] + ")  bis: ( " +
-                    To[0] + " / " + To[1] + " )", this.width - this.borderright, this.height - this.borderbottom + 15);
+                this.ctx.fillText("Chunk: ( " + Chunk.x + " / " + Chunk.y + " )  im Bereich von: ( " +
+                    From.x + " / " + From.y + ")  bis: ( " +
+                    To.x + " / " + To.y + " )", this.width - this.borderright, this.height - this.borderbottom + 15);
                 this.ctx.textAlign = "start";
             }
         }
@@ -159,15 +168,15 @@ var SlimeMap = /** @class */ (function () {
         }
         //fill map
         this.ctx.fillStyle = "#e0e0e0";
-        var p1 = new Array(2);
-        var p2 = new Array(2);
-        p1[0] = this.vp[0];
-        p1[1] = this.vp[1];
-        p2[0] = this.vp[2];
-        p2[1] = this.vp[3];
-        p1 = this.getAbsCoord(p1);
-        p2 = this.getAbsCoord(p2);
-        this.ctx.fillRect(p1[0], p1[1], p2[0] - p1[0], p2[1] - p1[1]);
+        var p1 = __assign({}, origin);
+        var p2 = __assign({}, origin);
+        p1.x = this.vp.x1;
+        p1.y = this.vp.y1;
+        p2.x = this.vp.x2;
+        p2.y = this.vp.y2;
+        p1 = this.getAbsCoord(p1, true);
+        p2 = this.getAbsCoord(p2, true);
+        this.ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
         //UI
         this.drawUI();
         this.drawAxes();
@@ -179,58 +188,58 @@ var SlimeMap = /** @class */ (function () {
     SlimeMap.prototype.recalcSlimeChunks = function () {
         if (JSON.stringify(this.chunkvp) !== JSON.stringify(this.chunkviewport())) {
             var newChunkvp = this.chunkviewport();
-            var top_1 = this.chunkvp[1] - newChunkvp[1];
-            var bottom = newChunkvp[3] - this.chunkvp[3];
-            var left = this.chunkvp[0] - newChunkvp[0];
-            var right = newChunkvp[2] - this.chunkvp[2];
+            var top_1 = this.chunkvp.y1 - newChunkvp.y1;
+            var bottom = newChunkvp.y2 - this.chunkvp.y2;
+            var left = this.chunkvp.x1 - newChunkvp.x1;
+            var right = newChunkvp.x2 - this.chunkvp.x2;
             if (top_1 > 0) {
                 for (var i = 1; i <= top_1; i++) {
-                    //addRow( chunkvp[1] - i );
+                    //addRow( chunkvp.y1 - i );
                 }
             }
             else {
                 for (var i = 0; i > top_1; i--) {
-                    this.removeRow(this.chunkvp[1] - i);
+                    this.removeRow(this.chunkvp.y1 - i);
                 }
             }
             if (bottom > 0) {
                 for (var i = 1; i <= bottom; i++) {
-                    //addRow( chunkvp[3] + i );
+                    //addRow( chunkvp.y2 + i );
                 }
             }
             else {
                 for (var i = 0; i > bottom; i--) {
-                    this.removeRow(this.chunkvp[3] + i);
+                    this.removeRow(this.chunkvp.y2 + i);
                 }
             }
             if (left > 0) {
                 for (var i = 1; i <= left; i++) {
-                    //addColumn( chunkvp[0] - i );
+                    //addColumn( chunkvp.x1 - i );
                 }
             }
             else {
                 for (var i = 0; i > left; i--) {
-                    this.removeColumn(this.chunkvp[0] - i);
+                    this.removeColumn(this.chunkvp.x1 - i);
                 }
             }
             if (right > 0) {
                 for (var i = 1; i <= right; i++) {
-                    //addColumn( chunkvp[2] + i );
+                    //addColumn( chunkvp.x2 + i );
                 }
             }
             else {
                 for (var i = 0; i > right; i--) {
-                    this.removeColumn(this.chunkvp[2] + i);
+                    this.removeColumn(this.chunkvp.x2 + i);
                 }
             }
             this.chunkvp = newChunkvp;
         }
     };
     SlimeMap.prototype.addRow = function (row) {
-        var Cols = Math.abs(this.chunkvp[1]) + Math.abs(this.chunkvp[3]);
+        var Cols = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
         for (var i = 0; i < Cols; i++) {
-            var mapChunkPos = this.getMapChunkPos(new Array(i, 0));
-            var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos[0], y: row }, this.seed);
+            var mapChunkPos = this.getMapChunkPos({ x: i, y: 0 });
+            var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos.x, y: row }, this.seed);
             var hash = JSON.stringify(mapChunkPos);
             this.slimechunks[hash] = isSC;
         }
@@ -246,10 +255,10 @@ var SlimeMap = /** @class */ (function () {
         }
     };
     SlimeMap.prototype.addColumn = function (col) {
-        var Rows = Math.abs(this.chunkvp[0]) + Math.abs(this.chunkvp[2]);
+        var Rows = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
         for (var i = 0; i < Rows; i++) {
-            var mapChunkPos = this.getMapChunkPos(new Array(0, i));
-            var isSC = slimeChunk_1.isSlimeChunk({ x: col, y: mapChunkPos[1] }, this.seed);
+            var mapChunkPos = this.getMapChunkPos({ x: 0, y: i });
+            var isSC = slimeChunk_1.isSlimeChunk({ x: col, y: mapChunkPos.y }, this.seed);
             var hash = JSON.stringify(mapChunkPos);
             this.slimechunks[hash] = isSC;
         }
@@ -265,49 +274,50 @@ var SlimeMap = /** @class */ (function () {
         }
     };
     SlimeMap.prototype.initSlimeChunks = function () {
-        var ChunksCountX = Math.abs(this.chunkvp[0]) + Math.abs(this.chunkvp[2]);
-        var ChunksCountZ = Math.abs(this.chunkvp[1]) + Math.abs(this.chunkvp[3]);
-        this.slimechunks = new Object({});
+        var ChunksCountX = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
+        var ChunksCountZ = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
+        this.slimechunks = {};
         for (var i = 0; i < ChunksCountX; i++) {
             for (var j = 0; j < ChunksCountZ; j++) {
-                var mapChunkPos = this.getMapChunkPos(new Array(i, j));
-                var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos[0], y: mapChunkPos[1] }, this.seed);
-                var hash = JSON.stringify(mapChunkPos);
-                this.slimechunks[hash] = isSC;
+                var mapChunkPos = this.getMapChunkPos({ x: i, y: j });
+                var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos.x, y: mapChunkPos.y }, this.seed);
+                var key = JSON.stringify(mapChunkPos);
+                this.slimechunks[key] = isSC;
             }
         }
     };
     SlimeMap.prototype.getMapChunkPos = function (vec) {
-        vec[0] += this.chunkvp[0];
-        vec[1] += this.chunkvp[1];
-        return vec;
+        return {
+            x: vec.x += this.chunkvp.x1,
+            y: vec.y += this.chunkvp.y1
+        };
     };
     SlimeMap.prototype.drawSlimeChunks = function () {
         if (!this.ctx) {
             return;
         }
         this.ctx.fillStyle = "#44dd55";
-        var ChunksCountX = Math.abs(this.chunkvp[0]) + Math.abs(this.chunkvp[2]);
-        var ChunksCountZ = Math.abs(this.chunkvp[1]) + Math.abs(this.chunkvp[3]);
+        var ChunksCountX = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
+        var ChunksCountZ = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
         for (var i = 0; i < ChunksCountX; i++) {
             for (var j = 0; j < ChunksCountZ; j++) {
-                var mapChunkPos = this.getMapChunkPos(new Array(i, j));
+                var mapChunkPos = this.getMapChunkPos({ x: i, y: j });
                 var key = JSON.stringify(mapChunkPos);
                 if (this.slimechunks[key] === undefined) {
-                    this.slimechunks[key] = slimeChunk_1.isSlimeChunk({ x: mapChunkPos[0], y: mapChunkPos[1] }, this.seed);
+                    this.slimechunks[key] = slimeChunk_1.isSlimeChunk({ x: mapChunkPos.x, y: mapChunkPos.y }, this.seed);
                 }
                 if (this.slimechunks[key]) {
                     var vec = mapChunkPos;
-                    vec[0] *= 16;
-                    vec[1] *= 16;
+                    vec.x *= 16;
+                    vec.y *= 16;
                     var vec2 = this.getAbsCoord(vec);
                     if (vec2) {
-                        this.ctx.fillRect(vec2[0] + 1, vec2[1] + 1, 16 * this.zoom - 2, 16 * this.zoom - 2);
+                        this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 2, 16 * this.zoom - 2);
                     }
                     else {
                         vec2 = this.getAbsCoord(vec, true);
-                        var x = vec2[0] + 1;
-                        var z = vec2[1] + 1;
+                        var x = vec2.x + 1;
+                        var z = vec2.y + 1;
                         var width = (16 * this.zoom) - 2;
                         var height = (16 * this.zoom) - 2;
                         var paint = false;
@@ -347,18 +357,18 @@ var SlimeMap = /** @class */ (function () {
         this.ctx.font = "12px MyriadPro";
         this.ctx.fillStyle = "#000000";
         //X
-        for (var i = Math.ceil(this.vp[0] / factor); i <= Math.floor(this.vp[2] / factor); i++) {
+        for (var i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
             var mark = i * factor;
-            var pos = new Array(mark, this.vp[1]);
-            pos = this.getAbsCoord(pos);
-            this.ctx.fillText(mark, pos[0] - (mark.toString().length * 3), this.bordertop - 5);
+            var pos = { x: mark, y: this.vp.y1 };
+            pos = this.getAbsCoord(pos, true);
+            this.ctx.fillText(mark + "", pos.x - (mark.toString().length * 3), this.bordertop - 5);
         }
         //Z
-        for (var i = Math.ceil(this.vp[1] / factor); i <= Math.floor(this.vp[3] / factor); i++) {
+        for (var i = Math.ceil(this.vp.y1 / factor); i <= Math.floor(this.vp.y2 / factor); i++) {
             var mark = i * factor;
-            var pos = new Array(this.vp[0], mark);
-            pos = this.getAbsCoord(pos);
-            this.ctx.fillText(mark, this.borderleft - 30, pos[1] + 4);
+            var pos = { x: this.vp.x1, y: mark };
+            pos = this.getAbsCoord(pos, true);
+            this.ctx.fillText(mark + "", this.borderleft - 30, pos.y + 4);
         }
     };
     SlimeMap.prototype.drawStaticUI = function () {
@@ -432,7 +442,7 @@ var SlimeMap = /** @class */ (function () {
         var factor = 16;
         this.ctx.strokeStyle = "#000000";
         //X
-        for (var i = Math.ceil(this.vp[0] / factor); i <= Math.floor(this.vp[2] / factor); i++) {
+        for (var i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
             // tslint:disable-next-line:prefer-conditional-expression
             if (i === 0) {
                 this.ctx.lineWidth = 0.8;
@@ -441,16 +451,16 @@ var SlimeMap = /** @class */ (function () {
                 this.ctx.lineWidth = 0.5;
             }
             var mark = i * factor;
-            var pos = new Array(mark, this.vp[1]);
-            pos = this.getAbsCoord(pos);
+            var pos = { x: mark, y: this.vp.y1 };
+            pos = this.getAbsCoord(pos, true);
             this.ctx.beginPath();
-            this.ctx.moveTo(pos[0], this.bordertop);
-            this.ctx.lineTo(pos[0], this.height - this.borderbottom);
+            this.ctx.moveTo(pos.x, this.bordertop);
+            this.ctx.lineTo(pos.x, this.height - this.borderbottom);
             this.ctx.stroke();
             this.ctx.closePath();
         }
         //Z
-        for (var i = Math.ceil(this.vp[1] / factor); i <= Math.floor(this.vp[3] / factor); i++) {
+        for (var i = Math.ceil(this.vp.y1 / factor); i <= Math.floor(this.vp.y2 / factor); i++) {
             // tslint:disable-next-line:prefer-conditional-expression
             if (i === 0) {
                 this.ctx.lineWidth = 0.8;
@@ -459,11 +469,11 @@ var SlimeMap = /** @class */ (function () {
                 this.ctx.lineWidth = 0.5;
             }
             var mark = i * factor;
-            var pos = new Array(this.vp[0], mark);
-            pos = this.getAbsCoord(pos);
+            var pos = { x: this.vp.x1, y: mark };
+            pos = this.getAbsCoord(pos, true);
             this.ctx.beginPath();
-            this.ctx.moveTo(this.borderleft, pos[1]);
-            this.ctx.lineTo(this.width - this.borderright, pos[1]);
+            this.ctx.moveTo(this.borderleft, pos.y);
+            this.ctx.lineTo(this.width - this.borderright, pos.y);
             this.ctx.stroke();
             this.ctx.closePath();
         }
@@ -484,45 +494,42 @@ var SlimeMap = /** @class */ (function () {
         this.ctx.fillRect(this.width - this.borderright, 0, this.borderright, this.height);
     };
     SlimeMap.prototype.isInVP = function (vec) {
-        return (vec[0] >= this.vp[0] && vec[0] <= this.vp[2] &&
-            vec[1] >= this.vp[1] && vec[1] <= this.vp[3]);
+        return (vec.x >= this.vp.x1 && vec.x <= this.vp.x2 &&
+            vec.y >= this.vp.y1 && vec.y <= this.vp.y2);
     };
     SlimeMap.prototype.isOverMap = function (vec) {
-        return (vec[0] >= this.borderleft && vec[0] <= (this.width - this.borderright) &&
-            vec[1] >= this.bordertop && vec[1] <= (this.height - this.borderbottom));
+        return (vec.x >= this.borderleft && vec.x <= (this.width - this.borderright) &&
+            vec.y >= this.bordertop && vec.y <= (this.height - this.borderbottom));
     };
     SlimeMap.prototype.getAbsCoord = function (vec, ignoreBorder) {
+        if (ignoreBorder === void 0) { ignoreBorder = false; }
         if (this.isInVP(vec) || ignoreBorder) {
-            var vec2 = new Array(2);
-            vec2[0] = ((Math.floor(vec[0]) - this.vp[0]) * this.zoom) + this.borderleft;
-            vec2[1] = ((Math.floor(vec[1]) - this.vp[1]) * this.zoom) + this.bordertop;
+            var vec2 = __assign({}, origin);
+            vec2.x = ((Math.floor(vec.x) - this.vp.x1) * this.zoom) + this.borderleft;
+            vec2.y = ((Math.floor(vec.y) - this.vp.y1) * this.zoom) + this.bordertop;
             return vec2;
         }
-        else {
-            return false;
-        }
+        return false;
     };
     SlimeMap.prototype.getMapCoord = function (vec) {
         if (this.isOverMap(vec)) {
-            var vec2 = new Array(2);
-            vec2[0] = (vec[0] - this.borderleft) / this.zoom;
-            vec2[1] = (vec[1] - this.bordertop) / this.zoom;
-            vec2[0] += this.vp[0];
-            vec2[1] += this.vp[1];
+            var vec2 = __assign({}, origin);
+            vec2.x = Math.round((vec.x - this.borderleft) / this.zoom);
+            vec2.y = Math.round((vec.y - this.bordertop) / this.zoom);
+            vec2.x += this.vp.x1;
+            vec2.y += this.vp.y1;
             return vec2;
         }
-        else {
-            return false;
-        }
+        return false;
     };
     SlimeMap.prototype.viewport = function () {
-        var v = new Array(4);
+        var v = {};
         var totalwidth = (this.width - this.borderleft) - this.borderright;
         var totalheight = this.height - this.bordertop - this.borderbottom;
-        v[0] = -(Math.ceil((this.xPos + (totalwidth / 2)) / this.zoom));
-        v[1] = -(Math.ceil((this.yPos + (totalheight / 2)) / this.zoom));
-        v[2] = -(Math.floor((this.xPos - (totalwidth / 2)) / this.zoom));
-        v[3] = -(Math.floor((this.yPos - (totalheight / 2)) / this.zoom));
+        v.x1 = -(Math.ceil((this.xPos + (totalwidth / 2)) / this.zoom));
+        v.y1 = -(Math.ceil((this.yPos + (totalheight / 2)) / this.zoom));
+        v.x2 = -(Math.floor((this.xPos - (totalwidth / 2)) / this.zoom));
+        v.y2 = -(Math.floor((this.yPos - (totalheight / 2)) / this.zoom));
         return v;
     };
     return SlimeMap;
