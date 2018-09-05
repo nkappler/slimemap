@@ -10,6 +10,26 @@ var addend1 = new long_1.default(5947611);
 var addend2 = new long_1.default(4392871);
 var addend3 = new long_1.default(389711);
 var mask = new long_1.default(987234911);
+var SlimeChunkHandler = /** @class */ (function () {
+    function SlimeChunkHandler(seed) {
+        this.seed = seed;
+        this.cache = {};
+    }
+    SlimeChunkHandler.prototype.isSlimeChunk = function (chunk) {
+        var key = "[" + chunk.x + "," + chunk.y + "]";
+        if (this.cache[key] === undefined) {
+            this.cache[key] = isSlimeChunk(chunk, this.seed);
+        }
+        return this.cache[key];
+    };
+    SlimeChunkHandler.prototype.updateSeed = function (seed) {
+        this.seed = seed;
+        delete this.cache;
+        this.cache = {};
+    };
+    return SlimeChunkHandler;
+}());
+exports.SlimeChunkHandler = SlimeChunkHandler;
 function isSlimeChunk(chunk, seed) {
     var xPos = chunk.x;
     var zPos = chunk.y;

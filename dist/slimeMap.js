@@ -36,6 +36,7 @@ var SlimeMap = /** @class */ (function () {
         this.ctx = null;
         this.canvas = document.getElementById(id);
         this.seed = !!seed ? long_1.fromString(seed) : new long_1.default(Date.now());
+        this.SCH = new slimeChunk_1.SlimeChunkHandler(this.seed);
         this.initCanvas(id);
         this.update();
         this.drawStaticUI();
@@ -183,94 +184,11 @@ var SlimeMap = /** @class */ (function () {
         this.drawSlimeChunks();
         this.clearBorderRight();
         this.clearfooter();
-        this.recalcSlimeChunks();
+        this.updateSlimeVP();
     };
-    SlimeMap.prototype.recalcSlimeChunks = function () {
+    SlimeMap.prototype.updateSlimeVP = function () {
         if (JSON.stringify(this.chunkvp) !== JSON.stringify(this.chunkviewport())) {
-            var newChunkvp = this.chunkviewport();
-            var top_1 = this.chunkvp.y1 - newChunkvp.y1;
-            var bottom = newChunkvp.y2 - this.chunkvp.y2;
-            var left = this.chunkvp.x1 - newChunkvp.x1;
-            var right = newChunkvp.x2 - this.chunkvp.x2;
-            if (top_1 > 0) {
-                for (var i = 1; i <= top_1; i++) {
-                    //addRow( chunkvp.y1 - i );
-                }
-            }
-            else {
-                for (var i = 0; i > top_1; i--) {
-                    this.removeRow(this.chunkvp.y1 - i);
-                }
-            }
-            if (bottom > 0) {
-                for (var i = 1; i <= bottom; i++) {
-                    //addRow( chunkvp.y2 + i );
-                }
-            }
-            else {
-                for (var i = 0; i > bottom; i--) {
-                    this.removeRow(this.chunkvp.y2 + i);
-                }
-            }
-            if (left > 0) {
-                for (var i = 1; i <= left; i++) {
-                    //addColumn( chunkvp.x1 - i );
-                }
-            }
-            else {
-                for (var i = 0; i > left; i--) {
-                    this.removeColumn(this.chunkvp.x1 - i);
-                }
-            }
-            if (right > 0) {
-                for (var i = 1; i <= right; i++) {
-                    //addColumn( chunkvp.x2 + i );
-                }
-            }
-            else {
-                for (var i = 0; i > right; i--) {
-                    this.removeColumn(this.chunkvp.x2 + i);
-                }
-            }
-            this.chunkvp = newChunkvp;
-        }
-    };
-    SlimeMap.prototype.addRow = function (row) {
-        var Cols = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
-        for (var i = 0; i < Cols; i++) {
-            var mapChunkPos = this.getMapChunkPos({ x: i, y: 0 });
-            var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos.x, y: row }, this.seed);
-            var hash = JSON.stringify(mapChunkPos);
-            this.slimechunks[hash] = isSC;
-        }
-    };
-    SlimeMap.prototype.removeRow = function (row) {
-        var keys = Object.keys(this.slimechunks);
-        // tslint:disable-next-line:prefer-for-of
-        for (var i = 0; i < keys.length; i++) {
-            var key = keys[i];
-            if (key.indexOf("," + row + "]") !== -1) {
-                delete this.slimechunks[key];
-            }
-        }
-    };
-    SlimeMap.prototype.addColumn = function (col) {
-        var Rows = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
-        for (var i = 0; i < Rows; i++) {
-            var mapChunkPos = this.getMapChunkPos({ x: 0, y: i });
-            var isSC = slimeChunk_1.isSlimeChunk({ x: col, y: mapChunkPos.y }, this.seed);
-            var hash = JSON.stringify(mapChunkPos);
-            this.slimechunks[hash] = isSC;
-        }
-    };
-    SlimeMap.prototype.removeColumn = function (col) {
-        var keys = Object.keys(this.slimechunks);
-        // tslint:disable-next-line:prefer-for-of
-        for (var i = 0; i < keys.length; i++) {
-            var key = keys[i];
-            if (key.indexOf("[" + col + ",") !== -1) {
-                delete this.slimechunks[key];
-            }
+            this.chunkvp = this.chunkviewport();
         }
     };
     SlimeMap.prototype.initSlimeChunks = function () {
@@ -302,11 +220,7 @@ var SlimeMap = /** @class */ (function () {
         for (var i = 0; i < ChunksCountX; i++) {
             for (var j = 0; j < ChunksCountZ; j++) {
                 var mapChunkPos = this.getMapChunkPos({ x: i, y: j });
-                var key = JSON.stringify(mapChunkPos);
-                if (this.slimechunks[key] === undefined) {
-                    this.slimechunks[key] = slimeChunk_1.isSlimeChunk({ x: mapChunkPos.x, y: mapChunkPos.y }, this.seed);
-                }
-                if (this.slimechunks[key]) {
+                if (this.SCH.isSlimeChunk(mapChunkPos)) {
                     var vec = mapChunkPos;
                     vec.x *= 16;
                     vec.y *= 16;

@@ -1,5 +1,5 @@
 import Long, { fromString } from "long";
-import { isSlimeChunk } from "./slimeChunk";
+import { isSlimeChunk, SlimeChunkHandler } from "./slimeChunk";
 
 export interface Vector2D {
     x: number;
@@ -40,10 +40,12 @@ class SlimeMap {
     private grabbedCoord: Vector2D = { ...origin };
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D | null = null;
+    private SCH: SlimeChunkHandler;
 
     public constructor(id: string, seed?: string) {
         this.canvas = document.getElementById(id) as HTMLCanvasElement;
         this.seed = !!seed ? fromString(seed) : new Long(Date.now());
+        this.SCH = new SlimeChunkHandler(this.seed);
         this.initCanvas(id);
         this.update();
         this.drawStaticUI();
@@ -204,96 +206,12 @@ class SlimeMap {
         this.drawSlimeChunks();
         this.clearBorderRight();
         this.clearfooter();
-        this.recalcSlimeChunks();
+        this.updateSlimeVP();
     }
 
-    private recalcSlimeChunks() {
+    private updateSlimeVP() {
         if (JSON.stringify(this.chunkvp) !== JSON.stringify(this.chunkviewport())) {
-            const newChunkvp = this.chunkviewport();
-            const top = this.chunkvp.y1 - newChunkvp.y1;
-            const bottom = newChunkvp.y2 - this.chunkvp.y2;
-            const left = this.chunkvp.x1 - newChunkvp.x1;
-            const right = newChunkvp.x2 - this.chunkvp.x2;
-
-            if (top > 0) {
-                for (let i = 1; i <= top; i++) {
-                    //addRow( chunkvp.y1 - i );
-                }
-            } else {
-                for (let i = 0; i > top; i--) {
-                    this.removeRow(this.chunkvp.y1 - i);
-                }
-            }
-
-            if (bottom > 0) {
-                for (let i = 1; i <= bottom; i++) {
-                    //addRow( chunkvp.y2 + i );
-                }
-            } else {
-                for (let i = 0; i > bottom; i--) {
-                    this.removeRow(this.chunkvp.y2 + i);
-                }
-            }
-
-            if (left > 0) {
-                for (let i = 1; i <= left; i++) {
-                    //addColumn( chunkvp.x1 - i );
-                }
-            } else {
-                for (let i = 0; i > left; i--) {
-                    this.removeColumn(this.chunkvp.x1 - i);
-                }
-            }
-
-            if (right > 0) {
-                for (let i = 1; i <= right; i++) {
-                    //addColumn( chunkvp.x2 + i );
-                }
-            } else {
-                for (let i = 0; i > right; i--) {
-                    this.removeColumn(this.chunkvp.x2 + i);
-                }
-            }
-
-            this.chunkvp = newChunkvp;
-        }
-    }
-
-    private addRow(row: number) {
-        const Cols = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
-        for (let i = 0; i < Cols; i++) {
-            const mapChunkPos = this.getMapChunkPos({ x: i, y: 0 });
-            const isSC = isSlimeChunk({ x: mapChunkPos.x, y: row }, this.seed);
-            const hash = JSON.stringify(mapChunkPos);
-            this.slimechunks[hash] = isSC;
-        }
-    }
-
-    private removeRow(row: number) {
-        const keys = Object.keys(this.slimechunks);
-        // tslint:disable-next-line:prefer-for-of
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            if (key.indexOf("," + row + "]") !== -1) { delete this.slimechunks[key]; }
-        }
-    }
-
-    private addColumn(col: number) {
-        const Rows = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
-        for (let i = 0; i < Rows; i++) {
-            const mapChunkPos = this.getMapChunkPos({ x: 0, y: i });
-            const isSC = isSlimeChunk({ x: col, y: mapChunkPos.y }, this.seed);
-            const hash = JSON.stringify(mapChunkPos);
-            this.slimechunks[hash] = isSC;
-        }
-    }
-
-    private removeColumn(col: number) {
-        const keys = Object.keys(this.slimechunks);
-        // tslint:disable-next-line:prefer-for-of
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            if (key.indexOf("[" + col + ",") !== -1) { delete this.slimechunks[key]; }
+            this.chunkvp = this.chunkviewport();
         }
     }
 
@@ -333,9 +251,7 @@ class SlimeMap {
         for (let i = 0; i < ChunksCountX; i++) {
             for (let j = 0; j < ChunksCountZ; j++) {
                 const mapChunkPos = this.getMapChunkPos({ x: i, y: j });
-                const key = JSON.stringify(mapChunkPos);
-                if (this.slimechunks[key] === undefined) { this.slimechunks[key] = isSlimeChunk({ x: mapChunkPos.x, y: mapChunkPos.y }, this.seed); }
-                if (this.slimechunks[key]) {
+                if (this.SCH.isSlimeChunk(mapChunkPos)) {
                     const vec = mapChunkPos;
                     vec.x *= 16;
                     vec.y *= 16;
