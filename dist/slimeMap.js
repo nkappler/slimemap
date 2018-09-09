@@ -1,17 +1,24 @@
 "use strict";
-var __assign = (this && this.__assign) || Object.assign || function(t) {
-    for (var s, i = 1, n = arguments.length; i < n; i++) {
-        s = arguments[i];
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-            t[p] = s[p];
-    }
-    return t;
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var long_1 = __importDefault(require("long"));
+var long_1 = __importStar(require("long"));
 var slimeChunk_1 = require("./slimeChunk");
 var origin = { x: 0, y: 0 };
 var SlimeMap = /** @class */ (function () {
@@ -42,7 +49,6 @@ var SlimeMap = /** @class */ (function () {
         this.drawStaticUI();
         this.vp = this.viewport();
         this.chunkvp = this.chunkviewport();
-        this.initSlimeChunks();
         this.redraw();
         this.canvas.onmousemove = function (event) {
             _this.mousePos = { x: event.layerX, y: event.layerY };
@@ -181,45 +187,24 @@ var SlimeMap = /** @class */ (function () {
         //UI
         this.drawUI();
         this.drawAxes();
+        this.updateSlimeVP();
         this.drawSlimeChunks();
         this.clearBorderRight();
         this.clearfooter();
-        this.updateSlimeVP();
     };
     SlimeMap.prototype.updateSlimeVP = function () {
         if (JSON.stringify(this.chunkvp) !== JSON.stringify(this.chunkviewport())) {
             this.chunkvp = this.chunkviewport();
         }
     };
-    SlimeMap.prototype.initSlimeChunks = function () {
-        var ChunksCountX = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
-        var ChunksCountZ = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
-        this.slimechunks = {};
-        for (var i = 0; i < ChunksCountX; i++) {
-            for (var j = 0; j < ChunksCountZ; j++) {
-                var mapChunkPos = this.getMapChunkPos({ x: i, y: j });
-                var isSC = slimeChunk_1.isSlimeChunk({ x: mapChunkPos.x, y: mapChunkPos.y }, this.seed);
-                var key = JSON.stringify(mapChunkPos);
-                this.slimechunks[key] = isSC;
-            }
-        }
-    };
-    SlimeMap.prototype.getMapChunkPos = function (vec) {
-        return {
-            x: vec.x += this.chunkvp.x1,
-            y: vec.y += this.chunkvp.y1
-        };
-    };
     SlimeMap.prototype.drawSlimeChunks = function () {
         if (!this.ctx) {
             return;
         }
         this.ctx.fillStyle = "#44dd55";
-        var ChunksCountX = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
-        var ChunksCountZ = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
-        for (var i = 0; i < ChunksCountX; i++) {
-            for (var j = 0; j < ChunksCountZ; j++) {
-                var mapChunkPos = this.getMapChunkPos({ x: i, y: j });
+        for (var x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
+            for (var y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
+                var mapChunkPos = { x: x, y: y };
                 if (this.SCH.isSlimeChunk(mapChunkPos)) {
                     var vec = mapChunkPos;
                     vec.x *= 16;
@@ -230,14 +215,14 @@ var SlimeMap = /** @class */ (function () {
                     }
                     else {
                         vec2 = this.getAbsCoord(vec, true);
-                        var x = vec2.x + 1;
+                        var x_1 = vec2.x + 1;
                         var z = vec2.y + 1;
                         var width = (16 * this.zoom) - 2;
                         var height = (16 * this.zoom) - 2;
                         var paint = false;
-                        if (x < this.borderleft && x + width >= this.borderleft) {
-                            width += x - this.borderleft;
-                            x = this.borderleft;
+                        if (x_1 < this.borderleft && x_1 + width >= this.borderleft) {
+                            width += x_1 - this.borderleft;
+                            x_1 = this.borderleft;
                             paint = true;
                         }
                         if (z < this.bordertop && z + height >= this.bordertop) {
@@ -245,11 +230,11 @@ var SlimeMap = /** @class */ (function () {
                             z = this.bordertop;
                             paint = true;
                         }
-                        if (x + width < this.borderleft || z + height < this.bordertop) {
+                        if (x_1 + width < this.borderleft || z + height < this.bordertop) {
                             paint = false;
                         }
                         if (paint) {
-                            this.ctx.fillRect(x, z, width, height);
+                            this.ctx.fillRect(x_1, z, width, height);
                         }
                     }
                 }

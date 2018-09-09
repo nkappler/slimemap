@@ -51,7 +51,6 @@ class SlimeMap {
         this.drawStaticUI();
         this.vp = this.viewport();
         this.chunkvp = this.chunkviewport();
-        this.initSlimeChunks();
         this.redraw();
 
         this.canvas.onmousemove = (event: MouseEvent) => {
@@ -203,10 +202,10 @@ class SlimeMap {
         //UI
         this.drawUI();
         this.drawAxes();
+        this.updateSlimeVP();
         this.drawSlimeChunks();
         this.clearBorderRight();
         this.clearfooter();
-        this.updateSlimeVP();
     }
 
     private updateSlimeVP() {
@@ -215,42 +214,15 @@ class SlimeMap {
         }
     }
 
-    private initSlimeChunks() {
-        const ChunksCountX = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
-        const ChunksCountZ = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
-
-        this.slimechunks = {};
-
-        for (let i = 0; i < ChunksCountX; i++) {
-            for (let j = 0; j < ChunksCountZ; j++) {
-                const mapChunkPos = this.getMapChunkPos({ x: i, y: j });
-                const isSC = isSlimeChunk({ x: mapChunkPos.x, y: mapChunkPos.y }, this.seed);
-                const key = JSON.stringify(mapChunkPos);
-
-                this.slimechunks[key] = isSC;
-            }
-        }
-    }
-
-    private getMapChunkPos(vec: Vector2D): Vector2D {
-        return {
-            x: vec.x += this.chunkvp.x1,
-            y: vec.y += this.chunkvp.y1
-        };
-    }
-
     private drawSlimeChunks() {
         if (!this.ctx) {
             return;
         }
         this.ctx.fillStyle = "#44dd55";
 
-        const ChunksCountX = Math.abs(this.chunkvp.x1) + Math.abs(this.chunkvp.x2);
-        const ChunksCountZ = Math.abs(this.chunkvp.y1) + Math.abs(this.chunkvp.y2);
-
-        for (let i = 0; i < ChunksCountX; i++) {
-            for (let j = 0; j < ChunksCountZ; j++) {
-                const mapChunkPos = this.getMapChunkPos({ x: i, y: j });
+        for (let x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
+            for (let y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
+                const mapChunkPos:Vector2D = { x, y };
                 if (this.SCH.isSlimeChunk(mapChunkPos)) {
                     const vec = mapChunkPos;
                     vec.x *= 16;

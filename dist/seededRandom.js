@@ -1,9 +1,13 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var long_1 = __importDefault(require("long"));
+var long_1 = __importStar(require("long"));
 var nmultiplier = new long_1.default(0xDEECE66D, 0x5);
 var naddend = new long_1.default(0xB);
 var nmask = new long_1.default(0xFFFFFFFF, 0xFFFF);
