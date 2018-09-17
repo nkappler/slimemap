@@ -4,7 +4,6 @@ import { SlimeChunkHandler } from "./slimeChunk";
 export interface Vector2D {
     x: number;
     y: number;
-    [index: number]: never;
 }
 
 export interface AABB {
@@ -34,11 +33,8 @@ class SlimeMap {
     private minzoom = 0.7;
     private maxzoom = 5;
     private vp: AABB;
-    private chunkbuffer = 3;
+    private chunkbuffer = 0; //current implementation does not benefit from chunk buffer.
     private chunkvp: AABB;
-    private slimechunks: {
-        [key: string]: boolean;
-    } = {};
     private borderleft = 70;
     private bordertop = 50;
     private borderbottom = 20;
@@ -46,14 +42,22 @@ class SlimeMap {
     private grabbed = false;
     private grabbedCoord: Vector2D = { ...origin };
     private canvas: HTMLCanvasElement;
-    private ctx: CanvasRenderingContext2D | null = null;
+    private ctx: CanvasRenderingContext2D;
     private SCH: SlimeChunkHandler;
 
     public constructor(id: string, seed?: string) {
-        this.canvas = document.getElementById(id) as HTMLCanvasElement;
+        const canvas = document.getElementById(id);
+        if (!canvas) {
+            throw (new Error("no canvas"));
+        }
+        this.canvas = canvas as HTMLCanvasElement;
+        this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
+        const ctx = this.canvas.getContext("2d");
+        this.ctx = ctx ? ctx : new CanvasRenderingContext2D();
+        this.assertEventHandlers();
+
         this.seed = !!seed ? fromString(seed) : new Long(Date.now());
         this.SCH = new SlimeChunkHandler(this.seed);
-        this.initCanvas(id);
         this.update();
         this.drawStaticUI();
         this.vp = this.viewport();
@@ -61,8 +65,15 @@ class SlimeMap {
         this.redraw();
 
         this.canvas.onmousemove = (event: MouseEvent) => {
-            this.mousePos = { x: event.layerX, y: event.layerY };
-            this.onMouseMove();
+            this.mousePos = { x: event.clientX, y: event.clientY };
+            if (event.buttons === 1) {
+                this.xPos -= event.movementX;
+                this.yPos -= event.movementY;
+                this.redraw();
+            } else {
+                this.clearfooter();
+                this.drawFooter();
+            }
         };
 
         this.canvas.onmousedown = (_event: MouseEvent) => {
@@ -78,15 +89,6 @@ class SlimeMap {
             this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
             this.grabbed = false;
         };
-    }
-
-    private initCanvas(id) {
-        if (this.canvas.getContext) {
-            this.ctx = this.canvas.getContext('2d');
-        } else {
-            alert("Dein Browser unterstützt diese Funktion noch nicht.\nBitte installiere die neueste Version von deinem Browser.");
-        }
-        this.assertEventHandlers();
     }
 
     private assertEventHandlers() {
@@ -120,81 +122,59 @@ class SlimeMap {
                 this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
                 this.redraw();
             }
-            this.onMouseMove();
         }
     }
 
     private chunkviewport(): AABB {
         return {
-            x1: Math.ceil(this.vp.x1 / 16) - this.chunkbuffer,
-            y1: Math.ceil(this.vp.y1 / 16) - this.chunkbuffer,
+            x1: Math.floor(this.vp.x1 / 16) - this.chunkbuffer,
+            y1: Math.floor(this.vp.y1 / 16) - this.chunkbuffer,
             x2: Math.ceil(this.vp.x2 / 16) + this.chunkbuffer,
             y2: Math.ceil(this.vp.y2 / 16) + this.chunkbuffer
         };
     }
 
     private update() {
-        if (!this.ctx) {
-            return;
-        }
         this.vp = this.viewport();
         this.width = this.canvas.width;
         this.height = this.canvas.height;
     }
 
-    private onMouseMove() {
-        this.clearfooter();
+    private drawFooter() {
         const vec = this.getMapCoord(this.mousePos);
         if (vec) {
-            if (this.grabbed) {
-                this.canvas.setAttribute("style", "cursor: grabbing; cursor: -webkit-grabbing");
-                const offsetX = this.grabbedCoord.x - this.xPos;
-                const offsetY = this.grabbedCoord.y - this.yPos;
-                this.xPos = vec.x - offsetX;
-                this.yPos = vec.y - offsetY;
-                this.redraw();
-            } else if (this.ctx) {
-                this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
-                this.ctx.font = "15px MyriadPro";
-                this.ctx.fillStyle = "#000000";
-                this.ctx.fillText("X: " + vec.x.toFixed(1) + "    Z: " + vec.y.toFixed(1), this.borderleft, this.height - this.borderbottom + 15);
+            this.ctx.font = "15px MyriadPro sans-serif";
+            this.ctx.fillStyle = "#000000";
+            this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.y.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
 
-                const Chunk = { ...origin };
-                Chunk.x = Math.floor(vec.x / 16);
-                Chunk.y = Math.floor(vec.y / 16);
-                const Slimes = (this.slimechunks["[" + Chunk.x + "," + Chunk.y + "]"]) ? "ja" : "nein";
-                this.ctx.fillText("Slimes: " + Slimes, this.borderleft + 200, this.height - this.borderbottom + 15);
+            const Chunk = { ...origin };
+            Chunk.x = Math.floor(vec.x / 16);
+            Chunk.y = Math.floor(vec.y / 16);
+            const Slimes = this.SCH.isSlimeChunk(Chunk) ? "ja" : "nein";
+            this.ctx.fillText("Slimes: " + Slimes, this.borderleft + 200, this.height - this.borderbottom + 15);
 
-                const From = { ...origin };
-                From.x = Chunk.x * 16;
-                From.y = Chunk.y * 16;
-                const To = { ...origin };
-                To.x = (Chunk.x + 1) * 16 - 1;
-                To.y = (Chunk.y + 1) * 16 - 1;
+            const From = { ...Chunk };
+            From.x *= 16;
+            From.y *= 16;
+            const To = { ...From };
+            To.x += 15;
+            To.y += 15;
 
-                this.ctx.textAlign = "end";
-                this.ctx.fillText("Chunk: ( " + Chunk.x + " / " + Chunk.y + " )  im Bereich von: ( " +
-                    From.x + " / " + From.y + ")  bis: ( " +
-                    To.x + " / " + To.y + " )", this.width - this.borderright, this.height - this.borderbottom + 15);
-                this.ctx.textAlign = "start";
-            }
-        } else {
-            this.canvas.setAttribute("style", "cursor: default");
+            this.ctx.textAlign = "end";
+            this.ctx.fillText("Chunk: ( " + Chunk.x + " / " + Chunk.y + " )  im Bereich von: ( " +
+                From.x + " / " + From.y + ")  bis: ( " +
+                To.x + " / " + To.y + " )", this.width - this.borderright, this.height - this.borderbottom + 15);
+            this.ctx.textAlign = "start";
         }
     }
 
     private clearfooter() {
-        if (this.ctx) {
-            this.ctx.fillStyle = "#CED4DE";
-            this.ctx.fillRect(this.borderleft, this.height - this.borderbottom, this.width - this.borderleft, this.borderbottom);
-        }
+        this.ctx.fillStyle = "#CED4DE";
+        this.ctx.fillRect(this.borderleft - 1, this.height - this.borderbottom, this.width - this.borderleft, this.borderbottom);
     }
 
     private redraw() {
         this.vp = this.viewport();
-        if (!this.ctx) {
-            return;
-        }
 
         //fill map
         this.ctx.fillStyle = "#e0e0e0";
@@ -221,16 +201,12 @@ class SlimeMap {
     }
 
     private drawSlimeChunks() {
-        if (!this.ctx) {
-            return;
-        }
         this.ctx.fillStyle = "#44dd55";
 
         for (let x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
             for (let y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
-                const mapChunkPos: Vector2D = { x, y };
-                if (this.SCH.isSlimeChunk(mapChunkPos)) {
-                    const vec = mapChunkPos;
+                if (this.SCH.isSlimeChunk({ x, y })) {
+                    const vec = { x, y };
                     vec.x *= 16;
                     vec.y *= 16;
 
@@ -239,6 +215,7 @@ class SlimeMap {
                         this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 2, 16 * this.zoom - 2);
                     }
                     else {
+                        //slime chunk may be partially on map
                         vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y + 16 });
                         if (vec2) {
                             this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y - 16 * this.zoom, 16 * this.zoom - 2, 16 * this.zoom - 2);
@@ -250,10 +227,6 @@ class SlimeMap {
     }
 
     private drawUI() {
-        if (!this.ctx) {
-            return;
-        }
-        this.clearAxes();
         let factor = 16;
         if (this.zoom < 2) { factor *= 2; }
         if (this.zoom < 0.9) { factor *= 2; }
@@ -276,12 +249,10 @@ class SlimeMap {
     }
 
     private drawStaticUI() {
-        if (!this.ctx) { return; }
         //clear;
         this.ctx.fillStyle = "#CED4DE";
         this.ctx.fillRect(0, 0, this.width, this.bordertop);
         this.ctx.fillRect(0, 0, this.borderleft, this.height);
-
 
         //Border
         this.ctx.lineWidth = 1;
@@ -346,16 +317,11 @@ class SlimeMap {
     }
 
     private drawGrid() {
-        if (!this.ctx) {
-            return;
-        }
         const factor = 16;
         this.ctx.strokeStyle = "#000000";
         //X
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
-            // tslint:disable-next-line:prefer-conditional-expression
-            if (i === 0) { this.ctx.lineWidth = 0.8; }
-            else { this.ctx.lineWidth = 0.5; }
+            this.ctx.lineWidth = (i === 0) ? 0.8 : 0.5;
             const mark = i * factor;
             let pos: Vector2D = { x: mark, y: this.vp.y1 };
             pos = this.getAbsCoord(pos, true);
@@ -367,9 +333,7 @@ class SlimeMap {
         }
         //Z
         for (let i = Math.ceil(this.vp.y1 / factor); i <= Math.floor(this.vp.y2 / factor); i++) {
-            // tslint:disable-next-line:prefer-conditional-expression
-            if (i === 0) { this.ctx.lineWidth = 0.8; }
-            else { this.ctx.lineWidth = 0.5; }
+            this.ctx.lineWidth = (i === 0) ? 0.8 : 0.5;
             const mark = i * factor;
             let pos: Vector2D = { x: this.vp.x1, y: mark };
             pos = this.getAbsCoord(pos, true);
@@ -381,19 +345,7 @@ class SlimeMap {
         }
     }
 
-    private clearAxes() {
-        if (!this.ctx) {
-            return;
-        }
-        this.ctx.fillStyle = "#CED4DE";
-        this.ctx.fillRect(30, this.bordertop - 22, this.width - 30, 20);
-        this.ctx.fillRect(this.borderleft - 32, 40, 30, this.height - 40);
-    }
-
     private clearBorderRight() {
-        if (!this.ctx) {
-            return;
-        }
         this.ctx.fillStyle = "#CED4DE";
         this.ctx.fillRect(this.width - this.borderright, 0, this.borderright, this.height);
     }
@@ -435,12 +387,12 @@ class SlimeMap {
 
     private viewport(): AABB {
         const v: Partial<AABB> = {};
-        const totalwidth = (this.width - this.borderleft) - this.borderright;
-        const totalheight = this.height - this.bordertop - this.borderbottom;
-        v.x1 = -(Math.ceil((this.xPos + (totalwidth / 2)) / this.zoom));
-        v.y1 = -(Math.ceil((this.yPos + (totalheight / 2)) / this.zoom));
-        v.x2 = -(Math.floor((this.xPos - (totalwidth / 2)) / this.zoom));
-        v.y2 = -(Math.floor((this.yPos - (totalheight / 2)) / this.zoom));
+        const mapWidth = this.width - this.borderleft - this.borderright;
+        const mapHeight = this.height - this.bordertop - this.borderbottom;
+        v.x1 = Math.ceil((this.xPos - (mapWidth / 2)) / this.zoom);
+        v.y1 = Math.ceil((this.yPos - (mapHeight / 2)) / this.zoom);
+        v.x2 = Math.floor((this.xPos + (mapWidth / 2)) / this.zoom);
+        v.y2 = Math.floor((this.yPos + (mapHeight / 2)) / this.zoom);
         return v as AABB;
     }
 
