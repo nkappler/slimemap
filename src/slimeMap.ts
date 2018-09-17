@@ -1,5 +1,5 @@
 import Long, { fromString } from "long";
-import { isSlimeChunk, SlimeChunkHandler } from "./slimeChunk";
+import { SlimeChunkHandler } from "./slimeChunk";
 
 export interface Vector2D {
     x: number;
@@ -13,6 +13,13 @@ export interface AABB {
     x2: number;
     y2: number;
 }
+
+const getV2fromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
+    return {
+        p1: { x: aabb.x1, y: aabb.y1 },
+        p2: { x: aabb.x2, y: aabb.y2 }
+    };
+};
 
 const origin: Vector2D = { x: 0, y: 0 };
 
@@ -109,6 +116,8 @@ class SlimeMap {
             }
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
                 this.zoom += zoomfactor;
+                this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
+                this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
                 this.redraw();
             }
             this.onMouseMove();
@@ -116,12 +125,12 @@ class SlimeMap {
     }
 
     private chunkviewport(): AABB {
-        const v: Partial<AABB> = {};
-        v.x1 = Math.ceil(this.vp.x1 / 16) - this.chunkbuffer;
-        v.y1 = Math.ceil(this.vp.y1 / 16) - this.chunkbuffer;
-        v.x2 = Math.ceil(this.vp.x2 / 16) + this.chunkbuffer;
-        v.y2 = Math.ceil(this.vp.y2 / 16) + this.chunkbuffer;
-        return v as AABB;
+        return {
+            x1: Math.ceil(this.vp.x1 / 16) - this.chunkbuffer,
+            y1: Math.ceil(this.vp.y1 / 16) - this.chunkbuffer,
+            x2: Math.ceil(this.vp.x2 / 16) + this.chunkbuffer,
+            y2: Math.ceil(this.vp.y2 / 16) + this.chunkbuffer
+        };
     }
 
     private update() {
@@ -189,21 +198,18 @@ class SlimeMap {
 
         //fill map
         this.ctx.fillStyle = "#e0e0e0";
-        let p1: Vector2D = { ...origin };
-        let p2: Vector2D = { ...origin };
-        p1.x = this.vp.x1;
-        p1.y = this.vp.y1;
-        p2.x = this.vp.x2;
-        p2.y = this.vp.y2;
+        const vp = this.vp;
+        let { p1, p2 } = getV2fromAABB(this.vp);
         p1 = this.getAbsCoord(p1, true);
         p2 = this.getAbsCoord(p2, true);
         this.ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
 
         //UI
-        this.drawUI();
-        this.drawAxes();
         this.updateSlimeVP();
         this.drawSlimeChunks();
+        this.drawStaticUI();
+        this.drawUI();
+        this.drawGrid();
         this.clearBorderRight();
         this.clearfooter();
     }
@@ -222,7 +228,7 @@ class SlimeMap {
 
         for (let x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
             for (let y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
-                const mapChunkPos:Vector2D = { x, y };
+                const mapChunkPos: Vector2D = { x, y };
                 if (this.SCH.isSlimeChunk(mapChunkPos)) {
                     const vec = mapChunkPos;
                     vec.x *= 16;
@@ -233,29 +239,11 @@ class SlimeMap {
                         this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 2, 16 * this.zoom - 2);
                     }
                     else {
-                        vec2 = this.getAbsCoord(vec, true);
-                        let x = vec2.x + 1;
-                        let z = vec2.y + 1;
-                        let width = (16 * this.zoom) - 2;
-                        let height = (16 * this.zoom) - 2;
-                        let paint = false;
-
-                        if (x < this.borderleft && x + width >= this.borderleft) {
-                            width += x - this.borderleft;
-                            x = this.borderleft;
-                            paint = true;
+                        vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y + 16 });
+                        if (vec2) {
+                            this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y - 16 * this.zoom, 16 * this.zoom - 2, 16 * this.zoom - 2);
                         }
-                        if (z < this.bordertop && z + height >= this.bordertop) {
-                            height += z - this.bordertop;
-                            z = this.bordertop;
-                            paint = true;
-                        }
-
-                        if (x + width < this.borderleft || z + height < this.bordertop) { paint = false; }
-
-                        if (paint) { this.ctx.fillRect(x, z, width, height); }
                     }
-
                 }
             }
         }
@@ -291,7 +279,8 @@ class SlimeMap {
         if (!this.ctx) { return; }
         //clear;
         this.ctx.fillStyle = "#CED4DE";
-        this.ctx.fillRect(0, 0, this.width, this.height);
+        this.ctx.fillRect(0, 0, this.width, this.bordertop);
+        this.ctx.fillRect(0, 0, this.borderleft, this.height);
 
 
         //Border
@@ -309,10 +298,12 @@ class SlimeMap {
         this.ctx.fillStyle = "#333333";
         //North
         this.ctx.lineWidth = 0.7;
+        this.ctx.beginPath();
         this.ctx.moveTo(15, 5);
         this.ctx.lineTo(5, 30);
         this.ctx.lineTo(15, 20);
         this.ctx.stroke();
+        this.ctx.closePath();
         this.ctx.beginPath();
         this.ctx.moveTo(15, 20);
         this.ctx.lineTo(25, 30);
@@ -320,7 +311,7 @@ class SlimeMap {
         this.ctx.fill();
         this.ctx.stroke();
         this.ctx.closePath();
-        this.ctx.font = "15px MyriadPro";
+        this.ctx.font = "15px MyriadPro sans-serif";
         this.ctx.fillText("N", 10, 40);
         this.ctx.fillText("Seed: " + this.seed.toString(), 40, 20);
 
@@ -354,7 +345,7 @@ class SlimeMap {
         this.ctx.closePath();
     }
 
-    private drawAxes() {
+    private drawGrid() {
         if (!this.ctx) {
             return;
         }

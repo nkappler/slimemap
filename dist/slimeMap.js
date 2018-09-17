@@ -20,6 +20,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var long_1 = __importStar(require("long"));
 var slimeChunk_1 = require("./slimeChunk");
+var getV2fromAABB = function (aabb) {
+    return {
+        p1: { x: aabb.x1, y: aabb.y1 },
+        p2: { x: aabb.x2, y: aabb.y2 }
+    };
+};
 var origin = { x: 0, y: 0 };
 var SlimeMap = /** @class */ (function () {
     function SlimeMap(id, seed) {
@@ -102,18 +108,20 @@ var SlimeMap = /** @class */ (function () {
             }
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
                 this.zoom += zoomfactor;
+                this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
+                this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
                 this.redraw();
             }
             this.onMouseMove();
         }
     };
     SlimeMap.prototype.chunkviewport = function () {
-        var v = {};
-        v.x1 = Math.ceil(this.vp.x1 / 16) - this.chunkbuffer;
-        v.y1 = Math.ceil(this.vp.y1 / 16) - this.chunkbuffer;
-        v.x2 = Math.ceil(this.vp.x2 / 16) + this.chunkbuffer;
-        v.y2 = Math.ceil(this.vp.y2 / 16) + this.chunkbuffer;
-        return v;
+        return {
+            x1: Math.ceil(this.vp.x1 / 16) - this.chunkbuffer,
+            y1: Math.ceil(this.vp.y1 / 16) - this.chunkbuffer,
+            x2: Math.ceil(this.vp.x2 / 16) + this.chunkbuffer,
+            y2: Math.ceil(this.vp.y2 / 16) + this.chunkbuffer
+        };
     };
     SlimeMap.prototype.update = function () {
         if (!this.ctx) {
@@ -175,20 +183,17 @@ var SlimeMap = /** @class */ (function () {
         }
         //fill map
         this.ctx.fillStyle = "#e0e0e0";
-        var p1 = __assign({}, origin);
-        var p2 = __assign({}, origin);
-        p1.x = this.vp.x1;
-        p1.y = this.vp.y1;
-        p2.x = this.vp.x2;
-        p2.y = this.vp.y2;
+        var vp = this.vp;
+        var _a = getV2fromAABB(this.vp), p1 = _a.p1, p2 = _a.p2;
         p1 = this.getAbsCoord(p1, true);
         p2 = this.getAbsCoord(p2, true);
         this.ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
         //UI
-        this.drawUI();
-        this.drawAxes();
         this.updateSlimeVP();
         this.drawSlimeChunks();
+        this.drawStaticUI();
+        this.drawUI();
+        this.drawGrid();
         this.clearBorderRight();
         this.clearfooter();
     };
@@ -214,27 +219,9 @@ var SlimeMap = /** @class */ (function () {
                         this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 2, 16 * this.zoom - 2);
                     }
                     else {
-                        vec2 = this.getAbsCoord(vec, true);
-                        var x_1 = vec2.x + 1;
-                        var z = vec2.y + 1;
-                        var width = (16 * this.zoom) - 2;
-                        var height = (16 * this.zoom) - 2;
-                        var paint = false;
-                        if (x_1 < this.borderleft && x_1 + width >= this.borderleft) {
-                            width += x_1 - this.borderleft;
-                            x_1 = this.borderleft;
-                            paint = true;
-                        }
-                        if (z < this.bordertop && z + height >= this.bordertop) {
-                            height += z - this.bordertop;
-                            z = this.bordertop;
-                            paint = true;
-                        }
-                        if (x_1 + width < this.borderleft || z + height < this.bordertop) {
-                            paint = false;
-                        }
-                        if (paint) {
-                            this.ctx.fillRect(x_1, z, width, height);
+                        vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y + 16 });
+                        if (vec2) {
+                            this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y - 16 * this.zoom, 16 * this.zoom - 2, 16 * this.zoom - 2);
                         }
                     }
                 }
@@ -276,7 +263,8 @@ var SlimeMap = /** @class */ (function () {
         }
         //clear;
         this.ctx.fillStyle = "#CED4DE";
-        this.ctx.fillRect(0, 0, this.width, this.height);
+        this.ctx.fillRect(0, 0, this.width, this.bordertop);
+        this.ctx.fillRect(0, 0, this.borderleft, this.height);
         //Border
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
@@ -291,10 +279,12 @@ var SlimeMap = /** @class */ (function () {
         this.ctx.fillStyle = "#333333";
         //North
         this.ctx.lineWidth = 0.7;
+        this.ctx.beginPath();
         this.ctx.moveTo(15, 5);
         this.ctx.lineTo(5, 30);
         this.ctx.lineTo(15, 20);
         this.ctx.stroke();
+        this.ctx.closePath();
         this.ctx.beginPath();
         this.ctx.moveTo(15, 20);
         this.ctx.lineTo(25, 30);
@@ -302,7 +292,7 @@ var SlimeMap = /** @class */ (function () {
         this.ctx.fill();
         this.ctx.stroke();
         this.ctx.closePath();
-        this.ctx.font = "15px MyriadPro";
+        this.ctx.font = "15px MyriadPro sans-serif";
         this.ctx.fillText("N", 10, 40);
         this.ctx.fillText("Seed: " + this.seed.toString(), 40, 20);
         //Axisnames
@@ -334,7 +324,7 @@ var SlimeMap = /** @class */ (function () {
         this.ctx.stroke();
         this.ctx.closePath();
     };
-    SlimeMap.prototype.drawAxes = function () {
+    SlimeMap.prototype.drawGrid = function () {
         if (!this.ctx) {
             return;
         }
