@@ -117,9 +117,9 @@ class SlimeMap {
                 zoomfactor *= - 1;
             }
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
-                this.zoom += zoomfactor;
                 this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
                 this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
+                this.zoom += zoomfactor;
                 this.redraw();
             }
         }
