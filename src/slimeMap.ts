@@ -91,6 +91,12 @@ class SlimeMap {
         };
     }
 
+    public gotoCoordinate(coordinate: Vector2D) {
+        this.xPos = coordinate.x * this.zoom;
+        this.yPos = coordinate.y * this.zoom;
+        this.redraw();
+    }
+
     private assertEventHandlers() {
         const mousewheelevt = (/Firefox/i.test(navigator.userAgent)) ? "DOMMouseScroll" : "mousewheel"; //FF doesn't recognize mousewheel as of FF3.x
         const evt = (e) => this.onscroll(e);
@@ -400,7 +406,7 @@ class SlimeMap {
 
 function onload() {
     if (document.readyState === "interactive") {
-        const sm = new SlimeMap("slimemap-canvas");
+        (window as any).sm = new SlimeMap("slimemap-canvas");
     }
 }
 
