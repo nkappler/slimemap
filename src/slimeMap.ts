@@ -91,7 +91,14 @@ class SlimeMap {
         };
     }
 
-    public gotoCoordinate(coordinate: Vector2D) {
+    private isVector(vec: any): vec is Vector2D {
+        return vec && typeof vec.x === "number" && typeof vec.y === "number";
+    }
+
+    public gotoCoordinate(x: number, y: number)
+    public gotoCoordinate(coordinate: Vector2D)
+    public gotoCoordinate(param1: number | Vector2D, y?: number) {
+        const coordinate = this.isVector(param1) ? param1 : { x: param1, y: y as number };
         this.xPos = coordinate.x * this.zoom;
         this.yPos = coordinate.y * this.zoom;
         this.redraw();
