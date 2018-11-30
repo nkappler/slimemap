@@ -23,23 +23,39 @@ const getV2fromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
 const origin: Vector2D = { x: 0, y: 0 };
 
 export class SlimeMap {
+    /** The maps seed */
     private seed: Long;
+    /** canvas height */
     private height = 0;
+    /** canvas width */
     private width = 0;
+    /** x position on the map. (viewer/camera position) */
     private xPos = 0;
+    /** y position on the map. (viewer/camera position) */
     private yPos = 0;
+    /** the cursor Position (screen space) */
     private mousePos: Vector2D = { ...origin };
+    /** zoom factor. higher means closer */
     private zoom = 2.5;
     private minzoom = 0.7;
     private maxzoom = 5;
+    /** viewport: visible area on the map in coordinates (not px). slightly oversized to compensate for partly visible chunks. */
     private vp: AABB;
+    /** number of chunks that should be pre-calculated in each direction. DEPRECATED. */
     private chunkbuffer = 0; //current implementation does not benefit from chunk buffer.
+    /** visible area on map in chunks. */
     private chunkvp: AABB;
+    /** the border on the left side between canvas and map edge. */
     private borderleft = 70;
+    /** the border on the top side between canvas and map edge. */
     private bordertop = 50;
+    /** the border on the bottom side between canvas and map edge. */
     private borderbottom = 20;
+    /** the border on the left bottom between canvas and map edge. */
     private borderright = 20;
+    /** is the curser grabbed? -> the map is moved */
     private grabbed = false;
+    /** offset at which the map was grabbed in coordinates */
     private grabbedCoord: Vector2D = { ...origin };
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
@@ -60,7 +76,7 @@ export class SlimeMap {
         this.SCH = new SlimeChunkHandler(this.seed);
         this.update();
         this.drawStaticUI();
-        this.vp = this.viewport();
+        this.vp = this.calcViewport();
         this.chunkvp = this.chunkviewport();
         this.redraw();
 
@@ -141,7 +157,7 @@ export class SlimeMap {
     }
 
     private update() {
-        this.vp = this.viewport();
+        this.vp = this.calcViewport();
         this.width = this.canvas.width;
         this.height = this.canvas.height;
     }
@@ -180,7 +196,7 @@ export class SlimeMap {
     }
 
     private redraw() {
-        this.vp = this.viewport();
+        this.vp = this.calcViewport();
 
         //fill map
         this.ctx.fillStyle = "#e0e0e0";
@@ -214,14 +230,26 @@ export class SlimeMap {
 
                     let vec2 = this.getAbsCoord(vec);
                     if (vec2) {
-                        this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 2, 16 * this.zoom - 2);
+                        this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        continue;
                     }
-                    else {
-                        //slime chunk may be partially on map
-                        vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y + 16 });
-                        if (vec2) {
-                            this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y - 16 * this.zoom, 16 * this.zoom - 2, 16 * this.zoom - 2);
-                        }
+                    //slime chunk may be partially on map (overlap in x direction)
+                    vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y });
+                    if (vec2) {
+                        this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        continue;
+                    }
+                    //slime chunk may be partially on map (overlap in y direction)
+                    vec2 = this.getAbsCoord({ x: vec.x, y: vec.y + 16 });
+                    if (vec2) {
+                        this.ctx.fillRect(vec2.x, vec2.y - 16 * this.zoom, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        continue;
+                    }
+                    //slime chunk may be partially on map (overlap in both directions)
+                    vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y + 16 });
+                    if (vec2) {
+                        this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y - 16 * this.zoom, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        continue;
                     }
                 }
             }
@@ -387,14 +415,14 @@ export class SlimeMap {
         return false;
     }
 
-    private viewport(): AABB {
+    private calcViewport(): AABB {
         const v: Partial<AABB> = {};
         const mapWidth = this.width - this.borderleft - this.borderright;
         const mapHeight = this.height - this.bordertop - this.borderbottom;
-        v.x1 = Math.ceil((this.xPos - (mapWidth / 2)) / this.zoom);
-        v.y1 = Math.ceil((this.yPos - (mapHeight / 2)) / this.zoom);
-        v.x2 = Math.floor((this.xPos + (mapWidth / 2)) / this.zoom);
-        v.y2 = Math.floor((this.yPos + (mapHeight / 2)) / this.zoom);
+        v.x1 = Math.floor((this.xPos - (mapWidth / 2)) / this.zoom);
+        v.y1 = Math.floor((this.yPos - (mapHeight / 2)) / this.zoom);
+        v.x2 = Math.ceil((this.xPos + (mapWidth / 2)) / this.zoom);
+        v.y2 = Math.ceil((this.yPos + (mapHeight / 2)) / this.zoom);
         return v as AABB;
     }
 
