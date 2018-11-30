@@ -13,10 +13,19 @@ export interface AABB {
     y2: number;
 }
 
-const getV2fromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
+const getV2sfromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
     return {
         p1: { x: aabb.x1, y: aabb.y1 },
         p2: { x: aabb.x2, y: aabb.y2 }
+    };
+};
+
+const getAABBfromV2s = (p1: Vector2D, p2: Vector2D) => {
+    return {
+        x1: p1.x,
+        y1: p1.y,
+        x2: p2.x,
+        y2: p2.y
     };
 };
 
@@ -431,6 +440,50 @@ export class SlimeMap {
         v.x2 = Math.ceil((this.xPos + (mapWidth / 2)) / this.zoom);
         v.y2 = Math.ceil((this.yPos + (mapHeight / 2)) / this.zoom);
         return v as AABB;
+    }
+
+    /**
+     * takes a number, vector or area and applies the given (arithmetic) function to each value.
+     */
+    private doMath(number: number, f: (x: number) => number): number;
+    private doMath(vec: Vector2D, f: (x: number) => number): Vector2D;
+    private doMath(area: AABB, f: (x: number) => number): AABB;
+    private doMath(arg: number | Vector2D | AABB, f: (x: number) => number): number | Vector2D | AABB;
+    private doMath(arg: number | Vector2D | AABB, f: (x: number) => number): number | Vector2D | AABB {
+        if (this.isVector2D(arg)) {
+            return {
+                x: this.doMath(arg.x, f),
+                y: this.doMath(arg.y, f)
+            };
+        }
+        else if (this.isAABB(arg)) {
+            const v2s = getV2sfromAABB(arg);
+            return getAABBfromV2s(this.doMath(v2s.p1, f), this.doMath(v2s.p2, f));
+        }
+        return f(arg);
+    }
+
+    public ChunkToCoord(number: number): number;
+    public ChunkToCoord(vec: Vector2D): Vector2D;
+    public ChunkToCoord(area: AABB): AABB;
+    public ChunkToCoord(arg: number | Vector2D | AABB): number | Vector2D | AABB {
+        return this.doMath(arg, x => x * 16);
+    }
+
+    private isVector2D(vec: any): vec is Vector2D {
+        if (typeof vec !== "object") {
+            return false;
+        }
+        const keys = Object.keys(vec);
+        return keys.length === 2 /*&& keys.hasOwnProperty("x") && keys.hasOwnProperty("y")*/;
+    }
+
+    private isAABB(vec: any): vec is AABB {
+        if (typeof vec !== "object") {
+            return false;
+        }
+        const keys = Object.keys(vec);
+        return keys.length === 4 /*&& keys.hasOwnProperty("x1") && keys.hasOwnProperty("y1") && keys.hasOwnProperty("x2") && keys.hasOwnProperty("y2")*/;
     }
 
 }
