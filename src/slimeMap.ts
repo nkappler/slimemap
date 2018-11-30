@@ -20,7 +20,7 @@ const getV2sfromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
     };
 };
 
-const getAABBfromV2s = (p1: Vector2D, p2: Vector2D) => {
+const getAABBfromV2s = (p1: Vector2D, p2: Vector2D): AABB => {
     return {
         x1: p1.x,
         y1: p1.y,
@@ -38,9 +38,9 @@ export class SlimeMap {
     private height = 0;
     /** canvas width */
     private width = 0;
-    /** x position on the map. (viewer/camera position) */
+    /** x position on the map. (viewer/camera position, zoom already factored in (TODO)) */
     private xPos = 0;
-    /** y position on the map. (viewer/camera position) */
+    /** y position on the map. (viewer/camera position, zoom already factored in (TODO)) */
     private yPos = 0;
     /** the cursor Position (screen space) */
     private mousePos: Vector2D = { ...origin };
@@ -50,8 +50,6 @@ export class SlimeMap {
     private maxzoom = 5;
     /** viewport: visible area on the map in coordinates (not px). slightly oversized to compensate for partly visible chunks. */
     private vp: AABB;
-    /** number of chunks that should be pre-calculated in each direction. DEPRECATED. */
-    private chunkbuffer = 0; //current implementation does not benefit from chunk buffer.
     /** visible area on map in chunks. */
     private chunkvp: AABB;
     /** the border on the left side between canvas and map edge. */
@@ -86,7 +84,7 @@ export class SlimeMap {
         this.update();
         this.drawStaticUI();
         this.vp = this.calcViewport();
-        this.chunkvp = this.chunkviewport();
+        this.chunkvp = this.calcChunkVP();
         this.redraw();
 
         this.canvas.onmousemove = (event: MouseEvent) => {
@@ -116,14 +114,10 @@ export class SlimeMap {
         };
     }
 
-    private isVector(vec: any): vec is Vector2D {
-        return vec && typeof vec.x === "number" && typeof vec.y === "number";
-    }
-
     public gotoCoordinate(x: number, y: number)
     public gotoCoordinate(coordinate: Vector2D)
     public gotoCoordinate(param1: number | Vector2D, y?: number) {
-        const coordinate = this.isVector(param1) ? param1 : { x: param1, y: y as number };
+        const coordinate = this.isVector2D(param1) ? param1 : { x: param1, y: y as number };
         this.xPos = coordinate.x * this.zoom;
         this.yPos = coordinate.y * this.zoom;
         this.redraw();
@@ -163,19 +157,22 @@ export class SlimeMap {
         }
     }
 
-    private chunkviewport(): AABB {
-        return {
-            x1: Math.floor(this.vp.x1 / 16) - this.chunkbuffer,
-            y1: Math.floor(this.vp.y1 / 16) - this.chunkbuffer,
-            x2: Math.ceil(this.vp.x2 / 16) + this.chunkbuffer,
-            y2: Math.ceil(this.vp.y2 / 16) + this.chunkbuffer
-        };
+    /**
+     * calculates the visible map area in chunk representation.
+     * Result is slightly oversized to account for partially visible chunks.
+     */
+    private calcChunkVP(): AABB {
+        const v2s = getV2sfromAABB(this.vp);
+        return getAABBfromV2s(
+            this.doMath(v2s.p1, c => Math.floor(c / 16)),
+            this.doMath(v2s.p2, c => Math.ceil(c / 16))
+        );
     }
 
     private update() {
-        this.vp = this.calcViewport();
         this.width = this.canvas.width;
         this.height = this.canvas.height;
+        this.vp = this.calcViewport();
     }
 
     private drawFooter() {
@@ -185,18 +182,12 @@ export class SlimeMap {
             this.ctx.fillStyle = "#000000";
             this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.y.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
 
-            const Chunk = { ...origin };
-            Chunk.x = Math.floor(vec.x / 16);
-            Chunk.y = Math.floor(vec.y / 16);
+            const Chunk = this.doMath(vec, c => Math.floor(c / 16));
             const Slimes = this.SCH.isSlimeChunk(Chunk) ? "ja" : "nein";
             this.ctx.fillText("Slimes: " + Slimes, this.borderleft + 200, this.height - this.borderbottom + 15);
 
-            const From = { ...Chunk };
-            From.x *= 16;
-            From.y *= 16;
-            const To = { ...From };
-            To.x += 15;
-            To.y += 15;
+            const From = this.ChunkToCoord(Chunk);
+            const To = this.doMath(From, c => c + 15);
 
             this.ctx.textAlign = "end";
             this.ctx.fillText("Chunk: ( " + Chunk.x + " / " + Chunk.y + " )  im Bereich von: ( " +
@@ -229,8 +220,8 @@ export class SlimeMap {
     }
 
     private updateSlimeVP() {
-        if (JSON.stringify(this.chunkvp) !== JSON.stringify(this.chunkviewport())) {
-            this.chunkvp = this.chunkviewport();
+        if (JSON.stringify(this.chunkvp) !== JSON.stringify(this.calcChunkVP())) {
+            this.chunkvp = this.calcChunkVP();
         }
     }
 
@@ -240,9 +231,7 @@ export class SlimeMap {
         for (let x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
             for (let y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
                 if (this.SCH.isSlimeChunk({ x, y })) {
-                    const vec = { x, y };
-                    vec.x *= 16;
-                    vec.y *= 16;
+                    const vec = this.ChunkToCoord({ x, y });
 
                     let vec2 = this.getAbsCoord(vec);
                     if (vec2) {
@@ -475,7 +464,7 @@ export class SlimeMap {
             return false;
         }
         const keys = Object.keys(vec);
-        return keys.length === 2 /*&& keys.hasOwnProperty("x") && keys.hasOwnProperty("y")*/;
+        return keys.length === 2 && typeof vec.x === "number" && typeof vec.y === "number";
     }
 
     private isAABB(vec: any): vec is AABB {
@@ -483,7 +472,7 @@ export class SlimeMap {
             return false;
         }
         const keys = Object.keys(vec);
-        return keys.length === 4 /*&& keys.hasOwnProperty("x1") && keys.hasOwnProperty("y1") && keys.hasOwnProperty("x2") && keys.hasOwnProperty("y2")*/;
+        return keys.length === 4 && typeof vec.x1 === "number" && typeof vec.y1 === "number" && typeof vec.x2 === "number" && typeof vec.y2 === "number";
     }
 
 }
