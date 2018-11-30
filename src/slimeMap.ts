@@ -22,7 +22,7 @@ const getV2fromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
 
 const origin: Vector2D = { x: 0, y: 0 };
 
-class SlimeMap {
+export class SlimeMap {
     private seed: Long;
     private height = 0;
     private width = 0;
@@ -184,11 +184,7 @@ class SlimeMap {
 
         //fill map
         this.ctx.fillStyle = "#e0e0e0";
-        const vp = this.vp;
-        let { p1, p2 } = getV2fromAABB(this.vp);
-        p1 = this.getAbsCoord(p1, true);
-        p2 = this.getAbsCoord(p2, true);
-        this.ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        this.ctx.fillRect(this.borderleft, this.bordertop, this.width - this.borderleft - this.borderright, this.height - this.bordertop - this.borderbottom);
 
         //UI
         this.updateSlimeVP();
@@ -404,10 +400,4 @@ class SlimeMap {
 
 }
 
-function onload() {
-    if (document.readyState === "interactive") {
-        (window as any).sm = new SlimeMap("slimemap-canvas");
-    }
-}
-
-document.onreadystatechange = onload;
+(window as any).SlimeMap = SlimeMap;
