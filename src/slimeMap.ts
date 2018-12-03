@@ -31,6 +31,17 @@ const getAABBfromV2s = (p1: Vector2D, p2: Vector2D): AABB => {
 
 const origin: Vector2D = { x: 0, y: 0 };
 
+interface Config {
+    seed?: string;
+    renderControls?: boolean;
+}
+
+interface Controls {
+    seedInput: HTMLInputElement;
+    xInput: HTMLInputElement;
+    zInput: HTMLInputElement;
+}
+
 export class SlimeMap {
     /** The maps seed */
     private seed: Long;
@@ -67,19 +78,20 @@ export class SlimeMap {
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private SCH: SlimeChunkHandler;
+    private config: Config;
+    private controls: Controls = undefined as any;
 
-    public constructor(id: string, seed?: string) {
-        const canvas = document.getElementById(id);
-        if (!canvas) {
-            throw (new Error("no canvas"));
-        }
-        this.canvas = canvas as HTMLCanvasElement;
+    public constructor(id: string, config?: Config) {
+        this.config = config || {};
+
+        this.canvas = this.createDOM(id);
+
         this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         const ctx = this.canvas.getContext("2d");
         this.ctx = ctx ? ctx : new CanvasRenderingContext2D();
         this.assertEventHandlers();
 
-        this.seed = !!seed ? fromString(seed) : new Long(Date.now());
+        this.seed = !!this.config.seed ? fromString(this.config.seed) : new Long(Date.now());
         this.SCH = new SlimeChunkHandler(this.seed);
         this.update();
         this.drawStaticUI();
@@ -114,13 +126,96 @@ export class SlimeMap {
         };
     }
 
-    public gotoCoordinate(x: number, y: number)
-    public gotoCoordinate(coordinate: Vector2D)
+    public gotoCoordinate(x: number, y: number);
+    public gotoCoordinate(coordinate: Vector2D);
     public gotoCoordinate(param1: number | Vector2D, y?: number) {
         const coordinate = this.isVector2D(param1) ? param1 : { x: param1, y: y as number };
         this.xPos = coordinate.x * this.zoom;
         this.yPos = coordinate.y * this.zoom;
         this.redraw();
+    }
+
+    private createDOM(id: string): HTMLCanvasElement {
+
+        const parent = document.getElementById(id);
+        if (!parent) {
+            throw (new Error("Element not found."));
+        }
+        const canvas: HTMLCanvasElement = document.createElement("canvas");
+
+        let container: HTMLElement;
+        if (parent.tagName === "CANVAS") {
+            container = document.createElement("div");
+            // tslint:disable-next-line:prefer-for-of
+            for (let i = 0; i < parent.attributes.length; i++) {
+                const attr = parent.attributes[i];
+                if (attr.name === "width" || attr.name === "height") {
+                    container.style[attr.name] = attr.value;
+                }
+                container.setAttribute(attr.name, attr.value);
+            }
+            container.appendChild(canvas);
+
+            const pparent = parent.parentNode || document.body;
+            pparent.replaceChild(container, parent);
+        } else {
+            container = parent;
+            container.appendChild(canvas);
+        }
+
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+
+        if (this.config.renderControls) {
+            this.renderControls(container);
+            canvas.height = canvas.height - 16;
+        }
+
+        return canvas as HTMLCanvasElement;
+    }
+
+    private renderControls(container: HTMLElement) {
+        const controlsdDiv = document.createElement("div");
+        controlsdDiv.setAttribute("style", "display: flex; width: 994px; justify-content: space-between;");
+
+        const seedDiv = document.createElement("div");
+        const seedInput: HTMLInputElement = document.createElement("input");
+        seedInput.type = "text";
+        seedInput.placeholder = "enter seed";
+        const seedButton = document.createElement("button");
+        seedButton.innerText = "Find Slimes";
+        seedButton.addEventListener("click", () => {
+            this.seed = fromString(seedInput.value);
+            this.redraw();
+        });
+        seedDiv.appendChild(seedInput);
+        seedDiv.appendChild(seedButton);
+
+        const navDiv = document.createElement("div");
+        const xInput: HTMLInputElement = document.createElement("input");
+        xInput.type = "text";
+        xInput.placeholder = "X";
+        const zInput: HTMLInputElement = document.createElement("input");
+        zInput.type = "text";
+        zInput.placeholder = "Z";
+        const navButton = document.createElement("button");
+        navButton.innerText = "go to coordinates";
+        navButton.addEventListener("click", () => {
+            this.gotoCoordinate(Number(this.controls.xInput.value), Number(this.controls.zInput.value));
+        });
+        navDiv.appendChild(xInput);
+        navDiv.appendChild(zInput);
+        navDiv.appendChild(navButton);
+
+
+        controlsdDiv.appendChild(seedDiv);
+        controlsdDiv.appendChild(navDiv);
+        container.appendChild(controlsdDiv);
+        this.controls = {
+            seedInput,
+            xInput,
+            zInput
+        };
     }
 
     private assertEventHandlers() {

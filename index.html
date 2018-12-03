@@ -8,7 +8,9 @@
     <script>
         document.addEventListener("readystatechange", function() {
             if (document.readyState === "interactive") {
-                window.sm = new SlimeMap("slimemap-canvas");
+                window.sm = new SlimeMap("slimemap-canvas", {
+                    renderControls: true
+                });
             }
         });
     </script>
