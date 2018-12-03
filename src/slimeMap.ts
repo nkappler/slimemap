@@ -178,7 +178,7 @@ export class SlimeMap {
     private drawFooter() {
         const vec = this.getMapCoord(this.mousePos);
         if (vec) {
-            this.ctx.font = "15px MyriadPro sans-serif";
+            this.ctx.font = "15px 'Montserrat' sans-serif";
             this.ctx.fillStyle = "#000000";
             this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.y.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
 
@@ -265,7 +265,7 @@ export class SlimeMap {
         let factor = 16;
         if (this.zoom < 2) { factor *= 2; }
         if (this.zoom < 0.9) { factor *= 2; }
-        this.ctx.font = "12px MyriadPro";
+        this.ctx.font = "12px 'Montserrat'";
         this.ctx.fillStyle = "#000000";
         //X
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
@@ -317,13 +317,13 @@ export class SlimeMap {
         this.ctx.fill();
         this.ctx.stroke();
         this.ctx.closePath();
-        this.ctx.font = "15px MyriadPro sans-serif";
+        this.ctx.font = "15px 'Montserrat' sans-serif";
         this.ctx.fillText("N", 10, 40);
         this.ctx.fillText("Seed: " + this.seed.toString(), 40, 20);
 
         //Axisnames
         //X
-        this.ctx.font = "20px MyriadPro";
+        this.ctx.font = "20px 'Montserrat'";
         const mapwidthcenter = this.borderleft + ((this.width - this.borderleft - this.borderright) / 2);
         this.ctx.fillText("X", mapwidthcenter - 10, 20);
         this.ctx.lineWidth = 0.4;
