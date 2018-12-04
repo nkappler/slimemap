@@ -126,6 +126,12 @@ export class SlimeMap {
         };
     }
 
+    public setSeed(seed: string) {
+        this.seed = fromString(seed);
+        this.SCH = new SlimeChunkHandler(this.seed);
+        this.redraw();
+    }
+
     public gotoCoordinate(x: number, y: number);
     public gotoCoordinate(coordinate: Vector2D);
     public gotoCoordinate(param1: number | Vector2D, y?: number) {
@@ -177,13 +183,19 @@ export class SlimeMap {
 
     private renderControls(container: HTMLElement) {
         const controlsdDiv = document.createElement("div");
-        Object.assign(controlsdDiv.style, {
+        const height = "28px";
+        Object.assign<CSSStyleDeclaration, Partial<CSSStyleDeclaration>>(controlsdDiv.style, {
             display: "flex",
             width: "100%",
             justifyContent: "space-between",
             position: "absolute",
-            bottom: 0,
-            background: "#CED4DE"
+            bottom: "0px",
+            background: "#CED4DE",
+            paddingRight: this.borderright + "px",
+            paddingLeft: this.borderleft + "px",
+            boxSizing: "border-box",
+            height,
+            lineHeight: height
         });
 
         const seedDiv = document.createElement("div");
@@ -193,8 +205,7 @@ export class SlimeMap {
         const seedButton = document.createElement("button");
         seedButton.innerText = "Find Slimes";
         seedButton.addEventListener("click", () => {
-            this.seed = fromString(seedInput.value);
-            this.redraw();
+            this.setSeed(seedInput.value);
         });
         seedDiv.appendChild(seedInput);
         seedDiv.appendChild(seedButton);
@@ -203,9 +214,11 @@ export class SlimeMap {
         const xInput: HTMLInputElement = document.createElement("input");
         xInput.type = "text";
         xInput.placeholder = "X";
+        xInput.style.width = "100px";
         const zInput: HTMLInputElement = document.createElement("input");
         zInput.type = "text";
         zInput.placeholder = "Z";
+        zInput.style.width = "100px";
         const navButton = document.createElement("button");
         navButton.innerText = "go to coordinates";
         navButton.addEventListener("click", () => {
