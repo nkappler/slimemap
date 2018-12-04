@@ -163,12 +163,13 @@ export class SlimeMap {
             container.appendChild(canvas);
         }
 
+        container.style.position = "relative";
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
 
         if (this.config.renderControls) {
-            this.renderControls(container);
-            canvas.height = canvas.height - 16;
+            const height = this.renderControls(container);
+            canvas.height = canvas.height - height;
         }
 
         return canvas as HTMLCanvasElement;
@@ -176,7 +177,14 @@ export class SlimeMap {
 
     private renderControls(container: HTMLElement) {
         const controlsdDiv = document.createElement("div");
-        controlsdDiv.setAttribute("style", "display: flex; width: 994px; justify-content: space-between;");
+        Object.assign(controlsdDiv.style, {
+            display: "flex",
+            width: "100%",
+            justifyContent: "space-between",
+            position: "absolute",
+            bottom: 0,
+            background: "#CED4DE"
+        });
 
         const seedDiv = document.createElement("div");
         const seedInput: HTMLInputElement = document.createElement("input");
@@ -216,6 +224,8 @@ export class SlimeMap {
             xInput,
             zInput
         };
+
+        return controlsdDiv.offsetHeight;
     }
 
     private assertEventHandlers() {
