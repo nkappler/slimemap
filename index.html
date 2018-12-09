@@ -6,15 +6,17 @@
     <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400" rel="stylesheet">
     <script src="dist/slime.js"></script>
     <script>
-        document.addEventListener("readystatechange", function() {
+        document.addEventListener("readystatechange", function () {
             if (document.readyState === "interactive") {
                 window.sm = new SlimeMap("slimemap-canvas", {
-                    renderControls: true
+                    renderControls: true,
+                    bottom: true
                 });
             }
         });
     </script>
 </head>
+
 <body>
     <canvas class="canvas" id="slimemap-canvas" width="994px" height="600px">
         Dein Browser unterstützt diese Funktion noch nicht. Bitte installiere die neueste Version von deinem Browser.

@@ -34,6 +34,7 @@ const origin: Vector2D = { x: 0, y: 0 };
 interface Config {
     seed?: string;
     renderControls?: boolean;
+    bottom?: boolean;
 }
 
 interface Controls {
@@ -173,15 +174,17 @@ export class SlimeMap {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
 
+
         if (this.config.renderControls) {
-            const height = this.renderControls(container);
-            canvas.height = canvas.height - height;
+            const height = this.renderControls(container, this.config.bottom);
+            this.borderbottom += this.config.bottom ? height : 0;
+            this.bordertop += this.config.bottom ? 0 : height;
         }
 
         return canvas as HTMLCanvasElement;
     }
 
-    private renderControls(container: HTMLElement) {
+    private renderControls(container: HTMLElement, bottom: boolean = false) {
         const controlsdDiv = document.createElement("div");
         const height = "28px";
         Object.assign<CSSStyleDeclaration, Partial<CSSStyleDeclaration>>(controlsdDiv.style, {
@@ -189,8 +192,8 @@ export class SlimeMap {
             width: "100%",
             justifyContent: "space-between",
             position: "absolute",
-            bottom: "0px",
-            background: "#CED4DE",
+            bottom: bottom ? "0px" : "auto",
+            top: bottom ? "auto" : height,
             paddingRight: this.borderright + "px",
             paddingLeft: this.borderleft + "px",
             boxSizing: "border-box",
@@ -437,7 +440,7 @@ export class SlimeMap {
         this.ctx.closePath();
         this.ctx.font = "15px 'Montserrat' sans-serif";
         this.ctx.fillText("N", 10, 40);
-        this.ctx.fillText("Seed: " + this.seed.toString(), 40, 20);
+        this.ctx.fillText("Seed: " + this.seed.toString(), this.borderleft, 20);
 
         //Axisnames
         //X
