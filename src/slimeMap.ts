@@ -209,6 +209,7 @@ export class SlimeMap {
         seedButton.innerText = "Find Slimes";
         seedButton.addEventListener("click", () => {
             this.setSeed(seedInput.value);
+            seedInput.value = "";
         });
         seedDiv.appendChild(seedInput);
         seedDiv.appendChild(seedButton);
@@ -225,7 +226,9 @@ export class SlimeMap {
         const navButton = document.createElement("button");
         navButton.innerText = "go to coordinates";
         navButton.addEventListener("click", () => {
-            this.gotoCoordinate(Number(this.controls.xInput.value), Number(this.controls.zInput.value));
+            this.gotoCoordinate(Number(xInput.value), Number(zInput.value));
+            xInput.value = "";
+            zInput.value = "";
         });
         navDiv.appendChild(xInput);
         navDiv.appendChild(zInput);
