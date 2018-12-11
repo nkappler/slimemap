@@ -260,7 +260,8 @@ export class SlimeMap {
     }
 
     private onscroll(event: WheelEvent) {
-        if (this.getMapCoord(this.mousePos)) {
+        const pos = this.getMapCoord(this.mousePos);
+        if (pos) {
             event.preventDefault();
             let zoomfactor = 0.2;
             if (this.zoom < 2) {
@@ -273,6 +274,12 @@ export class SlimeMap {
                 zoomfactor *= - 1;
             }
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
+                let normalized: Vector2D = {
+                    x: this.mousePos.x / (this.width - this.borderleft - this.borderright),
+                    y: this.mousePos.y / (this.height - this.borderbottom - this.bordertop)
+                };
+                normalized = this.doMath(normalized, x => x - 0.5);
+                console.log(normalized);
                 this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
                 this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
                 this.zoom += zoomfactor;
