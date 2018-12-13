@@ -101,7 +101,7 @@ export class SlimeMap {
         this.redraw();
 
         this.canvas.onmousemove = (event: MouseEvent) => {
-            this.mousePos = { x: event.clientX, y: event.clientY };
+            this.mousePos = { x: event.offsetX, y: event.offsetY };
             if (event.buttons === 1) {
                 this.xPos -= event.movementX;
                 this.yPos -= event.movementY;
@@ -267,22 +267,32 @@ export class SlimeMap {
             if (this.zoom < 2) {
                 zoomfactor /= 2;
             }
-            if (event.wheelDelta < 0) {
-                zoomfactor *= - 1;
-            }
-            else if (event.detail < 0) {
-                zoomfactor *= - 1;
-            }
+            const direction = event.wheelDelta > 0 ? 1 : -1;
+            zoomfactor *= direction;
+            // else if (event.detail < 0) {
+            //     zoomfactor *= - 1;
+            // }
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
                 let normalized: Vector2D = {
-                    x: this.mousePos.x / (this.width - this.borderleft - this.borderright),
-                    y: this.mousePos.y / (this.height - this.borderbottom - this.bordertop)
+                    x: (this.mousePos.x - this.borderleft) / (this.width - this.borderleft - this.borderright),
+                    y: (this.mousePos.y - this.bordertop) / (this.height - this.borderbottom - this.bordertop)
                 };
                 normalized = this.doMath(normalized, x => x - 0.5);
-                console.log(normalized);
-                this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
-                this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
+                // this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
+                // this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
+
+                this.update();
+                const mapWidth = this.vp.x2 - this.vp.x1;
+                const mapHeight = this.vp.y2 - this.vp.y1;
+                const toAdd = this.doMath({
+                    x: mapWidth * normalized.x,
+                    y: mapHeight * normalized.y
+                }, x => x / this.zoom * direction);
+                console.log(toAdd);
+                this.xPos += toAdd.x;
+                this.yPos += toAdd.y;
                 this.zoom += zoomfactor;
+
                 this.redraw();
             }
         }
