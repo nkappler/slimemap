@@ -3,11 +3,10 @@
 
 <head>
     <meta charset="utf8" />
-    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400" rel="stylesheet">
     <script src="dist/slime.js"></script>
     <script>
         document.addEventListener("readystatechange", function () {
-            if (document.readyState === "interactive") {
+            if (document.readyState === "complete") {
                 window.sm = new SlimeMap("slimemap-canvas", {
                     renderControls: true,
                     bottom: true

@@ -61,9 +61,9 @@ export class SlimeMap {
     private minzoom = 0.7;
     private maxzoom = 5;
     /** viewport: visible area on the map in coordinates (not px). slightly oversized to compensate for partly visible chunks. */
-    private vp: AABB;
+    private vp!: AABB;
     /** visible area on map in chunks. */
-    private chunkvp: AABB;
+    private chunkvp!: AABB;
     /** the border on the left side between canvas and map edge. */
     private borderleft = 70;
     /** the border on the top side between canvas and map edge. */
@@ -72,10 +72,6 @@ export class SlimeMap {
     private borderbottom = 20;
     /** the border on the left bottom between canvas and map edge. */
     private borderright = 20;
-    /** is the curser grabbed? -> the map is moved */
-    private grabbed = false;
-    /** offset at which the map was grabbed in coordinates */
-    private grabbedCoord: Vector2D = { ...origin };
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private SCH: SlimeChunkHandler;
@@ -94,20 +90,17 @@ export class SlimeMap {
 
         this.seed = !!this.config.seed ? fromString(this.config.seed) : new Long(Date.now());
         this.SCH = new SlimeChunkHandler(this.seed);
-        this.update();
-        this.drawStaticUI();
-        this.vp = this.calcViewport();
-        this.chunkvp = this.calcChunkVP();
+        this.updateSizes();
+        // this.drawStaticUI();
         this.redraw();
 
         this.canvas.onmousemove = (event: MouseEvent) => {
-            this.mousePos = { x: event.clientX, y: event.clientY };
+            this.mousePos = { x: event.offsetX, y: event.offsetY };
             if (event.buttons === 1) {
                 this.xPos -= event.movementX;
                 this.yPos -= event.movementY;
                 this.redraw();
             } else {
-                this.clearfooter();
                 this.drawFooter();
             }
         };
@@ -115,15 +108,12 @@ export class SlimeMap {
         this.canvas.onmousedown = (_event: MouseEvent) => {
             const vec = this.getMapCoord(this.mousePos);
             if (vec) {
-                this.grabbed = true;
                 this.canvas.setAttribute("style", "cursor: grabbing; cursor: -webkit-grabbing");
-                this.grabbedCoord = vec;
             }
         };
 
         this.canvas.onmouseup = (_event: MouseEvent) => {
             this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
-            this.grabbed = false;
         };
     }
 
@@ -142,7 +132,23 @@ export class SlimeMap {
         this.redraw();
     }
 
+    private loadFont() {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'https://fonts.googleapis.com/css?family=Montserrat:300,400';
+        document.head.appendChild(link);
+
+        //rerender a few times for the first few seconds,
+        const i = setInterval(() => {
+            this.drawStaticUI();
+            this.drawUI();
+        }, 100);
+        setTimeout(() => clearInterval(i), 2000);
+    }
+
     private createDOM(id: string): HTMLCanvasElement {
+        this.loadFont();
 
         const parent = document.getElementById(id);
         if (!parent) {
@@ -293,16 +299,18 @@ export class SlimeMap {
         );
     }
 
-    private update() {
+    private updateSizes() {
         this.width = this.canvas.width;
         this.height = this.canvas.height;
         this.vp = this.calcViewport();
+        this.chunkvp = this.calcChunkVP();
     }
 
     private drawFooter() {
         const vec = this.getMapCoord(this.mousePos);
         if (vec) {
-            this.ctx.font = "15px 'Montserrat' sans-serif";
+            this.clearfooter();
+            this.ctx.font = "normal 15px 'Montserrat'";
             this.ctx.fillStyle = "#000000";
             this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.y.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
 
@@ -389,7 +397,7 @@ export class SlimeMap {
         let factor = 16;
         if (this.zoom < 2) { factor *= 2; }
         if (this.zoom < 0.9) { factor *= 2; }
-        this.ctx.font = "12px 'Montserrat'";
+        this.ctx.font = "normal 12px 'Montserrat'";
         this.ctx.fillStyle = "#000000";
         //X
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
@@ -409,6 +417,7 @@ export class SlimeMap {
 
     private drawStaticUI() {
         //clear;
+        this.ctx.font = "normal 12px 'Montserrat'";
         this.ctx.fillStyle = "#CED4DE";
         this.ctx.fillRect(0, 0, this.width, this.bordertop);
         this.ctx.fillRect(0, 0, this.borderleft, this.height);
@@ -441,13 +450,13 @@ export class SlimeMap {
         this.ctx.fill();
         this.ctx.stroke();
         this.ctx.closePath();
-        this.ctx.font = "15px 'Montserrat' sans-serif";
         this.ctx.fillText("N", 10, 40);
+        this.ctx.font = "normal 15px 'Montserrat'";
         this.ctx.fillText("Seed: " + this.seed.toString(), this.borderleft, 20);
 
         //Axisnames
         //X
-        this.ctx.font = "20px 'Montserrat'";
+        this.ctx.font = "normal 20px 'Montserrat'";
         const mapwidthcenter = this.borderleft + ((this.width - this.borderleft - this.borderright) / 2);
         this.ctx.fillText("X", mapwidthcenter - 10, 20);
         this.ctx.lineWidth = 0.4;
