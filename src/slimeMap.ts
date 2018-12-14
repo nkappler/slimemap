@@ -50,13 +50,13 @@ export class SlimeMap {
     private height = 0;
     /** canvas width */
     private width = 0;
-    /** x position on the map. (viewer/camera position, zoom already factored in (TODO)) */
+    /** x position on the map. (viewer/camera position) */
     private xPos = 0;
-    /** y position on the map. (viewer/camera position, zoom already factored in (TODO)) */
+    /** y position on the map. (viewer/camera position) */
     private yPos = 0;
-    /** the cursor Position (screen space) */
+    /** the cursor Position (canvas coordinate system) */
     private mousePos: Vector2D = { ...origin };
-    /** zoom factor. higher means closer */
+    /** zoom factor. higher means larger area visible */
     private zoom = 2.5;
     private minzoom = 0.7;
     private maxzoom = 5;
@@ -97,8 +97,8 @@ export class SlimeMap {
         this.canvas.onmousemove = (event: MouseEvent) => {
             this.mousePos = { x: event.offsetX, y: event.offsetY };
             if (event.buttons === 1) {
-                this.xPos -= event.movementX;
-                this.yPos -= event.movementY;
+                this.xPos -= event.movementX / this.zoom;
+                this.yPos -= event.movementY / this.zoom;
                 this.redraw();
             } else {
                 this.drawFooter();
@@ -127,8 +127,8 @@ export class SlimeMap {
     public gotoCoordinate(coordinate: Vector2D);
     public gotoCoordinate(param1: number | Vector2D, y?: number) {
         const coordinate = this.isVector2D(param1) ? param1 : { x: param1, y: y as number };
-        this.xPos = coordinate.x * this.zoom;
-        this.yPos = coordinate.y * this.zoom;
+        this.xPos = coordinate.x;
+        this.yPos = coordinate.y;
         this.redraw();
     }
 
@@ -266,22 +266,30 @@ export class SlimeMap {
     }
 
     private onscroll(event: WheelEvent) {
-        if (this.getMapCoord(this.mousePos)) {
+        const pos = this.getMapCoord(this.mousePos);
+        if (pos) {
             event.preventDefault();
             let zoomfactor = 0.2;
             if (this.zoom < 2) {
                 zoomfactor /= 2;
             }
-            if (event.wheelDelta < 0) {
-                zoomfactor *= - 1;
-            }
-            else if (event.detail < 0) {
-                zoomfactor *= - 1;
-            }
+            const direction = event.wheelDelta > 0 ? 1 : -1;
+            zoomfactor *= direction;
+
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
-                this.xPos += ((this.xPos) / this.zoom) * zoomfactor;
-                this.yPos += ((this.yPos) / this.zoom) * zoomfactor;
+                // zoom should be based on cursor position, i.e. the map position under the cursor should not change
+                // during scroll. this means we can calc the offset of the positions before and after scrolling and apply
+                // it to the position.
                 this.zoom += zoomfactor;
+                this.updateSizes();
+                const newPos = this.getMapCoord(this.mousePos) as Vector2D;
+                const offset = {
+                    x: pos.x - newPos.x,
+                    y: pos.y - newPos.y
+                };
+                this.xPos += offset.x;
+                this.yPos += offset.y;
+
                 this.redraw();
             }
         }
@@ -555,12 +563,14 @@ export class SlimeMap {
 
     private calcViewport(): AABB {
         const v: Partial<AABB> = {};
-        const mapWidth = this.width - this.borderleft - this.borderright;
-        const mapHeight = this.height - this.bordertop - this.borderbottom;
-        v.x1 = Math.floor((this.xPos - (mapWidth / 2)) / this.zoom);
-        v.y1 = Math.floor((this.yPos - (mapHeight / 2)) / this.zoom);
-        v.x2 = Math.ceil((this.xPos + (mapWidth / 2)) / this.zoom);
-        v.y2 = Math.ceil((this.yPos + (mapHeight / 2)) / this.zoom);
+        let mapWidth = this.width - this.borderleft - this.borderright;
+        let mapHeight = this.height - this.bordertop - this.borderbottom;
+        mapWidth /= this.zoom;
+        mapHeight /= this.zoom;
+        v.x1 = Math.floor((this.xPos - (mapWidth / 2)));
+        v.y1 = Math.floor((this.yPos - (mapHeight / 2)));
+        v.x2 = Math.ceil((this.xPos + (mapWidth / 2)));
+        v.y2 = Math.ceil((this.yPos + (mapHeight / 2)));
         return v as AABB;
     }
 
