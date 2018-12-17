@@ -43,6 +43,12 @@ interface Controls {
     zInput: HTMLInputElement;
 }
 
+interface Marker {
+    location: Vector2D;
+    label?: string;
+    color?: string;
+}
+
 export class SlimeMap {
     /** The maps seed */
     private seed: Long;
@@ -72,6 +78,7 @@ export class SlimeMap {
     private borderbottom = 20;
     /** the border on the left bottom between canvas and map edge. */
     private borderright = 20;
+    private markers: Marker[] = [];
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private SCH: SlimeChunkHandler;
@@ -130,6 +137,55 @@ export class SlimeMap {
         this.xPos = coordinate.x;
         this.yPos = coordinate.y;
         this.redraw();
+    }
+
+    private addMarker(marker: Marker) {
+        this.markers.push(marker);
+    }
+
+    private deleteAllMarkers() {
+        this.markers = [];
+    }
+
+    private drawAllMarkers() {
+        for (const marker of this.markers) {
+            this.ctx.strokeStyle = "#000000";
+            this.ctx.fillStyle = marker.color || "#aa0000";
+            this.ctx.lineWidth = 1;
+            const coord = this.getAbsCoord(marker.location, true);
+
+            const { x, y } = coord;
+
+            const size = 32;
+
+            const height = size;
+            const width = 2 * height / 3;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.bezierCurveTo(x - width / 8, y - width / 16 * 9, x - width / 2, y - width / 16 * 9, x - width / 2, y - width);
+            this.ctx.arcTo(x - width / 2, y - height, x, y - height, width / 2);
+            this.ctx.arcTo(x + width / 2, y - height, x + width / 2, y - width, width / 2);
+            this.ctx.bezierCurveTo(x + width / 2, y - width / 16 * 9, x + width / 8, y - width / 16 * 9, x, y);
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.fill();
+
+            this.ctx.stroke();
+            this.ctx.closePath();
+
+            if (marker.label) {
+                this.ctx.font = "normal 15px 'Montserrat'";
+                this.ctx.textAlign = "center";
+                const textWidth = this.ctx.measureText(marker.label).width;
+                this.ctx.fillStyle = "rgba(206,212,222,0.7)";
+                this.ctx.fillRect(x - textWidth / 2 - 3, y - size - 30, textWidth + 6, 21);
+                this.ctx.fillStyle = "#000000";
+                this.ctx.fillText(marker.label, x, y - size - 15);
+                this.ctx.textAlign = "left";
+            }
+        }
     }
 
     private loadFont() {
@@ -232,7 +288,10 @@ export class SlimeMap {
         const navButton = document.createElement("button");
         navButton.innerText = "go to coordinates";
         navButton.addEventListener("click", () => {
-            this.gotoCoordinate(Number(xInput.value), Number(zInput.value));
+            const coordinate: Vector2D = { x: Number(xInput.value), y: Number(zInput.value) };
+            this.deleteAllMarkers();
+            this.addMarker({ location: coordinate, label: `( X: ${coordinate.x} / Z: ${coordinate.y} )` });
+            this.gotoCoordinate(coordinate);
             xInput.value = "";
             zInput.value = "";
         });
@@ -352,11 +411,13 @@ export class SlimeMap {
         //UI
         this.updateSlimeVP();
         this.drawSlimeChunks();
-        this.drawStaticUI();
-        this.drawUI();
         this.drawGrid();
+        this.drawAllMarkers();
+
         this.clearBorderRight();
         this.clearfooter();
+        this.drawStaticUI();
+        this.drawUI();
     }
 
     private updateSlimeVP() {
