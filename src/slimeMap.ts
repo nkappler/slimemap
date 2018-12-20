@@ -35,6 +35,12 @@ interface Config {
     seed?: string;
     renderControls?: boolean;
     bottom?: boolean;
+    mapBackgroundColor: string;
+    uiBackgroundColor: string;
+    slimeChunkColor: string;
+    strokeColor: string;
+    textColor: string;
+    markerDefaultColor: string;
 }
 
 interface Controls {
@@ -85,8 +91,16 @@ export class SlimeMap {
     private config: Config;
     private controls: Controls = undefined as any;
 
-    public constructor(id: string, config?: Config) {
-        this.config = config || {};
+    public constructor(id: string, config?: Partial<Config>) {
+        this.config = {
+            strokeColor: "#000000",
+            textColor: "#000000",
+            mapBackgroundColor: "#e0e0e0",
+            uiBackgroundColor: "#CED4DE",
+            slimeChunkColor: "#44dd55",
+            markerDefaultColor: "#aa0000",
+            ...config
+        };
 
         this.canvas = this.createDOM(id);
 
@@ -149,8 +163,8 @@ export class SlimeMap {
 
     private drawAllMarkers() {
         for (const marker of this.markers) {
-            this.ctx.strokeStyle = "#000000";
-            this.ctx.fillStyle = marker.color || "#aa0000";
+            this.ctx.strokeStyle = this.config.strokeColor;
+            this.ctx.fillStyle = marker.color || this.config.markerDefaultColor;
             this.ctx.lineWidth = 1;
             const coord = this.getAbsCoord(marker.location, true);
 
@@ -181,7 +195,7 @@ export class SlimeMap {
                 const textWidth = this.ctx.measureText(marker.label).width;
                 this.ctx.fillStyle = "rgba(206,212,222,0.7)";
                 this.ctx.fillRect(x - textWidth / 2 - 3, y - size - 30, textWidth + 6, 21);
-                this.ctx.fillStyle = "#000000";
+                this.ctx.fillStyle = this.config.textColor;
                 this.ctx.fillText(marker.label, x, y - size - 15);
                 this.ctx.textAlign = "left";
             }
@@ -378,7 +392,7 @@ export class SlimeMap {
         if (vec) {
             this.clearfooter();
             this.ctx.font = "normal 15px 'Montserrat'";
-            this.ctx.fillStyle = "#000000";
+            this.ctx.fillStyle = this.config.textColor;
             this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.y.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
 
             const Chunk = this.doMath(vec, c => Math.floor(c / 16));
@@ -397,7 +411,7 @@ export class SlimeMap {
     }
 
     private clearfooter() {
-        this.ctx.fillStyle = "#CED4DE";
+        this.ctx.fillStyle = this.config.uiBackgroundColor;
         this.ctx.fillRect(this.borderleft - 1, this.height - this.borderbottom, this.width - this.borderleft, this.borderbottom);
     }
 
@@ -405,7 +419,7 @@ export class SlimeMap {
         this.vp = this.calcViewport();
 
         //fill map
-        this.ctx.fillStyle = "#e0e0e0";
+        this.ctx.fillStyle = this.config.mapBackgroundColor;
         this.ctx.fillRect(this.borderleft, this.bordertop, this.width - this.borderleft - this.borderright, this.height - this.bordertop - this.borderbottom);
 
         //UI
@@ -427,7 +441,7 @@ export class SlimeMap {
     }
 
     private drawSlimeChunks() {
-        this.ctx.fillStyle = "#44dd55";
+        this.ctx.fillStyle = this.config.slimeChunkColor;
 
         for (let x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
             for (let y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
@@ -467,7 +481,7 @@ export class SlimeMap {
         if (this.zoom < 2) { factor *= 2; }
         if (this.zoom < 0.9) { factor *= 2; }
         this.ctx.font = "normal 12px 'Montserrat'";
-        this.ctx.fillStyle = "#000000";
+        this.ctx.fillStyle = this.config.textColor;
         //X
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
             const mark = i * factor;
@@ -487,15 +501,15 @@ export class SlimeMap {
     private drawStaticUI() {
         //clear;
         this.ctx.font = "normal 12px 'Montserrat'";
-        this.ctx.fillStyle = "#CED4DE";
+        this.ctx.fillStyle = this.config.uiBackgroundColor;
         this.ctx.fillRect(0, 0, this.width, this.bordertop);
         this.ctx.fillRect(0, 0, this.borderleft, this.height);
 
         //Border
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
-        this.ctx.fillStyle = "#000000";
-        this.ctx.strokeStyle = "#000000";
+        this.ctx.fillStyle = this.config.strokeColor;
+        this.ctx.strokeStyle = this.config.strokeColor;
         this.ctx.moveTo(this.width - this.borderright, this.bordertop - 1);
         this.ctx.lineTo(this.borderleft - 1, this.bordertop - 1);
         this.ctx.lineTo(this.borderleft - 1, this.height - this.borderbottom);
@@ -555,7 +569,7 @@ export class SlimeMap {
 
     private drawGrid() {
         const factor = 16;
-        this.ctx.strokeStyle = "#000000";
+        this.ctx.strokeStyle = this.config.strokeColor;
         //X
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
             this.ctx.lineWidth = (i === 0) ? 0.8 : 0.5;
@@ -583,7 +597,7 @@ export class SlimeMap {
     }
 
     private clearBorderRight() {
-        this.ctx.fillStyle = "#CED4DE";
+        this.ctx.fillStyle = this.config.uiBackgroundColor;
         this.ctx.fillRect(this.width - this.borderright, 0, this.borderright, this.height);
     }
 
