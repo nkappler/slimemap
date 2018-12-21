@@ -90,6 +90,8 @@ export class SlimeMap {
     private SCH: SlimeChunkHandler;
     private config: Config;
     private controls: Controls = undefined as any;
+    /** Reference to marker automatically placed by gotoCoordinates. */
+    private jumpMarker: Marker | undefined;
 
     public constructor(id: string, config?: Partial<Config>) {
         this.config = {
@@ -153,12 +155,49 @@ export class SlimeMap {
         this.redraw();
     }
 
-    private addMarker(marker: Marker) {
+    public addMarker(marker: Marker) {
         this.markers.push(marker);
     }
 
-    private deleteAllMarkers() {
+    public deleteAllMarkers() {
         this.markers = [];
+    }
+
+    public deleteMarker(index: number): boolean;
+    public deleteMarker(marker: Marker): boolean;
+    public deleteMarker(arg0: number | Marker): boolean {
+        if (typeof arg0 === "number") {
+            if (arg0 < this.markers.length) {
+                this.markers.splice(arg0, 1);
+                return true;
+            }
+        }
+        else if (this.markers.includes(arg0)) {
+            this.markers.splice(this.markers.indexOf(arg0), 1);
+            return true;
+        }
+        return false;
+    }
+
+    public findClosestMarker(searchPos: Vector2D, maxRadius: number = Infinity): Marker | undefined {
+        if (this.markers.length === 0) {
+            return undefined;
+        }
+        let closestMarker: Marker | undefined;
+        let closestDistance: number = Infinity;
+        this.markers.forEach(marker => {
+            //Pythagoras
+            const distance = Math.sqrt(
+                Math.pow(marker.location.x - searchPos.x, 2) +
+                Math.pow(marker.location.y - searchPos.y, 2)
+            );
+            if (distance < maxRadius && distance < closestDistance) {
+                closestDistance = distance;
+                closestMarker = marker;
+            }
+        });
+
+        return closestMarker;
     }
 
     private drawAllMarkers() {
@@ -303,8 +342,11 @@ export class SlimeMap {
         navButton.innerText = "go to coordinates";
         navButton.addEventListener("click", () => {
             const coordinate: Vector2D = { x: Number(xInput.value), y: Number(zInput.value) };
-            this.deleteAllMarkers();
-            this.addMarker({ location: coordinate, label: `( X: ${coordinate.x} / Z: ${coordinate.y} )` });
+            if (this.jumpMarker) {
+                this.deleteMarker(this.jumpMarker);
+            }
+            this.jumpMarker = { location: coordinate, label: `( X: ${coordinate.x} / Z: ${coordinate.y} )` };
+            this.addMarker(this.jumpMarker);
             this.gotoCoordinate(coordinate);
             xInput.value = "";
             zInput.value = "";
