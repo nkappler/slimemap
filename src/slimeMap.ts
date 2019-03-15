@@ -1,4 +1,5 @@
 import Long, { fromString } from "long";
+import "./ctxMenu";
 import { SlimeChunkHandler } from "./slimeChunk";
 
 export interface Vector2D {
@@ -104,7 +105,41 @@ export class SlimeMap {
             ...config
         };
 
+
         this.canvas = this.createDOM(id);
+        window.ContextMenu.attach("#" + this.canvas.id, [], (cxm) => {
+            const coord = this.getMapCoord(this.mousePos);
+            if (coord === false) {
+                return [];
+            }
+            cxm.push({
+                text: "add map marker",
+                action: () => {
+                    this.addMarker({
+                        location: coord,
+                        label: prompt("Enter a name for the marker", "New Marker") || "New Marker",
+                        color: "green"
+                    });
+                }
+            });
+
+            const closestMarker = this.findClosestMarker(coord, 40 / this.zoom); // increase search area the further zoomed out
+            if (closestMarker) {
+                cxm.push({
+                    text: `delete marker "${closestMarker.label}"`,
+                    action: () => this.deleteMarker(closestMarker)
+                });
+            }
+
+            cxm.push({
+                text: "delete all map markers",
+                action: () => {
+                    this.deleteAllMarkers();
+                },
+                disabled: this.markers.length === 0
+            });
+            return cxm;
+        });
 
         this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         const ctx = this.canvas.getContext("2d");
@@ -157,10 +192,12 @@ export class SlimeMap {
 
     public addMarker(marker: Marker) {
         this.markers.push(marker);
+        this.redraw();
     }
 
     public deleteAllMarkers() {
         this.markers = [];
+        this.redraw();
     }
 
     public deleteMarker(index: number): boolean;
@@ -169,11 +206,13 @@ export class SlimeMap {
         if (typeof arg0 === "number") {
             if (arg0 < this.markers.length) {
                 this.markers.splice(arg0, 1);
+                this.redraw();
                 return true;
             }
         }
         else if (this.markers.includes(arg0)) {
             this.markers.splice(this.markers.indexOf(arg0), 1);
+            this.redraw();
             return true;
         }
         return false;
@@ -288,7 +327,7 @@ export class SlimeMap {
         container.style.position = "relative";
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-
+        canvas.id = parent.id ? parent.id + "canvas" : "slimemap-canvas";
 
         if (this.config.renderControls) {
             const height = this.renderControls(container, this.config.bottom);
@@ -388,7 +427,7 @@ export class SlimeMap {
             if (this.zoom < 2) {
                 zoomfactor /= 2;
             }
-            const direction = event.wheelDelta > 0 ? 1 : -1;
+            const direction = event.deltaY > 0 ? 1 : -1;
             zoomfactor *= direction;
 
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
