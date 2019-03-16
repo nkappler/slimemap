@@ -1,5 +1,5 @@
 import Long, { fromString } from "long";
-import "./ctxMenu";
+import "./ctxMenu.min";
 import { SlimeChunkHandler } from "./slimeChunk";
 
 export interface Vector2D {
@@ -112,32 +112,60 @@ export class SlimeMap {
             if (coord === false) {
                 return [];
             }
-            cxm.push({
-                text: "add map marker",
-                action: () => {
-                    this.addMarker({
-                        location: coord,
-                        label: prompt("Enter a name for the marker", "New Marker") || "New Marker",
-                        color: "green"
-                    });
-                }
-            });
+
+            const getLabelDesc = (marker: Marker) => marker.label ? `"${marker.label}"` : `at ${JSON.stringify(marker.location)}`
 
             const closestMarker = this.findClosestMarker(coord, 40 / this.zoom); // increase search area the further zoomed out
             if (closestMarker) {
-                cxm.push({
-                    text: `delete marker "${closestMarker.label}"`,
-                    action: () => this.deleteMarker(closestMarker)
-                });
+                const label = getLabelDesc(closestMarker);
+                cxm = cxm.concat([
+                    {
+                        text: `Marker ${label}:`
+                    },
+                    {
+                        text: `Edit marker ${label}`,
+                        action: () => {
+                            this.showEditMarkerDialog(closestMarker, (updatedMarker) => {
+                                this.deleteMarker(closestMarker);
+                                this.addMarker(updatedMarker);
+                            });
+                        }
+                    },
+                    {
+                        text: `Delete marker ${label}`,
+                        action: () => this.deleteMarker(closestMarker)
+                    },
+                    { isDivider: true }
+                ]);
             }
 
-            cxm.push({
-                text: "delete all map markers",
-                action: () => {
-                    this.deleteAllMarkers();
+            cxm = cxm.concat([
+                {
+                    text: "Add marker",
+                    action: () => {
+                        this.showEditMarkerDialog({
+                            location: coord
+                        }, (marker) => {
+                            this.addMarker(marker);
+                        });
+                    }
                 },
-                disabled: this.markers.length === 0
-            });
+                {
+                    text: "Delete all markers",
+                    action: () => {
+                        this.deleteAllMarkers();
+                    },
+                    disabled: this.markers.length === 0
+                },
+                {
+                    text: "Go to marker",
+                    subMenu: this.markers.map((marker): CTXMItem => ({
+                        text: getLabelDesc(marker),
+                        action: () => this.gotoCoordinate(marker.location)
+                    })),
+                    disabled: this.markers.length === 0
+                }
+            ]);
             return cxm;
         });
 
@@ -173,6 +201,23 @@ export class SlimeMap {
         this.canvas.onmouseup = (_event: MouseEvent) => {
             this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         };
+
+        const style = document.createElement("style");
+        style.innerText = `
+            .ctxmenu {
+                background-color: ${this.config.uiBackgroundColor};
+                box-shadow: 3px 3px 15px;
+            }
+
+            .ctxmenu li.disabled {
+                color: #999;
+            }
+
+            .dialog {
+                font-family: 'Montserrat';
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     public setSeed(seed: string) {
@@ -278,6 +323,104 @@ export class SlimeMap {
                 this.ctx.textAlign = "left";
             }
         }
+    }
+
+    /**
+     * 
+     * @param marker the default marker properties
+     * @param onSubmit callback when the dialog is submitted
+     */
+    private showEditMarkerDialog(marker: Marker, onSubmit: (marker: Marker) => void) {
+        const parent = this.canvas.parentElement;
+        if (!parent) {
+            throw ("Canvas has no parent");
+        }
+
+        const popup = document.createElement("div");
+        popup.style.display = "grid";
+        popup.style.gridTemplateColumns = "auto auto";
+        popup.style.padding = "15px";
+        popup.className = "dialog";
+
+        const labelInput = document.createElement("input");
+        const labelLabel = document.createElement("label");
+        labelInput.value = marker.label || "New Marker";
+        labelLabel.innerText = "Marker Label:"
+        popup.appendChild(labelLabel);
+        popup.appendChild(labelInput);
+
+        const colorInput = document.createElement("input");
+        const colorLabel = document.createElement("label");
+        colorInput.type = "color";
+        colorInput.value = marker.color || this.config.markerDefaultColor
+        colorLabel.innerText = "Marker Color:"
+        popup.appendChild(colorLabel);
+        popup.appendChild(colorInput);
+
+        const xposInput = document.createElement("input");
+        const xPosLabel = document.createElement("label");
+        xposInput.type = "number";
+        xposInput.value = marker.location.x + "";
+        xPosLabel.innerText = "Marker X Position:"
+        popup.appendChild(xPosLabel);
+        popup.appendChild(xposInput);
+
+        const zposInput = document.createElement("input");
+        const zPosLabel = document.createElement("label");
+        zposInput.type = "number";
+        zposInput.value = marker.location.y + "";
+        zPosLabel.innerText = "Marker Z Position:"
+        popup.appendChild(zPosLabel);
+        popup.appendChild(zposInput);
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.innerText = "Cancel";
+        popup.appendChild(cancelBtn);
+
+        const submitBtn = document.createElement("button");
+        submitBtn.innerText = "Submit";
+        popup.appendChild(submitBtn);
+
+        const bounding = SlimeMap.getBounding(popup);
+
+        Object.assign<CSSStyleDeclaration, Partial<CSSStyleDeclaration>>(popup.style, {
+            position: "relative",
+            margin: "auto",
+            zIndex: "999",
+            background: this.config.uiBackgroundColor,
+            top: ((-parent.offsetHeight - bounding.height) * 0.5) + "px",
+            width: "300px",
+            boxShadow: `${this.config.strokeColor} 3px 3px 15px`,
+            left: `${this.borderleft - this.borderright}px`
+        });
+
+        parent.appendChild(popup);
+
+        submitBtn.onclick = () => {
+            parent.removeChild(popup);
+            marker = {
+                label: labelInput.value,
+                color: colorInput.value,
+                location: {
+                    x: Number(xposInput.value),
+                    y: Number(zposInput.value)
+                }
+            }
+            onSubmit(marker);
+        }
+
+        cancelBtn.onclick = () => {
+            parent.removeChild(popup);
+        }
+    }
+
+    private static getBounding(elem: HTMLElement): ClientRect | DOMRect {
+        const container = elem.cloneNode(true) as HTMLElement;
+        container.style.visibility = "hidden";
+        document.body.appendChild(container);
+        const result = container.getBoundingClientRect();
+        document.body.removeChild(container);
+        return result;
     }
 
     private loadFont() {
@@ -427,7 +570,7 @@ export class SlimeMap {
             if (this.zoom < 2) {
                 zoomfactor /= 2;
             }
-            const direction = event.deltaY > 0 ? 1 : -1;
+            const direction = event.detail > 0 ? -1 : 1;
             zoomfactor *= direction;
 
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
