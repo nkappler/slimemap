@@ -1,41 +1,42 @@
 import Long, { fromString } from "long";
-import "./ctxMenu.min";
+import { addMarker, attachContextMenu, deleteMarker, drawAllMarkers, Marker } from "./marker";
 import { SlimeChunkHandler } from "./slimeChunk";
 
 export interface Vector2D {
     x: number;
-    y: number;
+    z: number;
 }
 
 export interface AABB {
     x1: number;
-    y1: number;
+    z1: number;
     x2: number;
-    y2: number;
+    z2: number;
 }
 
 const getV2sfromAABB = (aabb: AABB): { p1: Vector2D, p2: Vector2D } => {
     return {
-        p1: { x: aabb.x1, y: aabb.y1 },
-        p2: { x: aabb.x2, y: aabb.y2 }
+        p1: { x: aabb.x1, z: aabb.z1 },
+        p2: { x: aabb.x2, z: aabb.z2 }
     };
 };
 
 const getAABBfromV2s = (p1: Vector2D, p2: Vector2D): AABB => {
     return {
         x1: p1.x,
-        y1: p1.y,
+        z1: p1.z,
         x2: p2.x,
-        y2: p2.y
+        z2: p2.z
     };
 };
 
-const origin: Vector2D = { x: 0, y: 0 };
+const origin: Vector2D = { x: 0, z: 0 };
 
 interface Config {
     seed?: string;
     renderControls?: boolean;
     bottom?: boolean;
+    allowMarkers: boolean;
     mapBackgroundColor: string;
     uiBackgroundColor: string;
     slimeChunkColor: string;
@@ -50,12 +51,6 @@ interface Controls {
     zInput: HTMLInputElement;
 }
 
-interface Marker {
-    location: Vector2D;
-    label?: string;
-    color?: string;
-}
-
 export class SlimeMap {
     /** The maps seed */
     private seed: Long;
@@ -66,11 +61,11 @@ export class SlimeMap {
     /** x position on the map. (viewer/camera position) */
     private xPos = 0;
     /** y position on the map. (viewer/camera position) */
-    private yPos = 0;
+    private zPos = 0;
     /** the cursor Position (canvas coordinate system) */
-    private mousePos: Vector2D = { ...origin };
+    public mousePos: Vector2D = { ...origin };
     /** zoom factor. higher means larger area visible */
-    private zoom = 2.5;
+    public zoom = 2.5;
     private minzoom = 0.7;
     private maxzoom = 5;
     /** viewport: visible area on the map in coordinates (not px). slightly oversized to compensate for partly visible chunks. */
@@ -78,18 +73,18 @@ export class SlimeMap {
     /** visible area on map in chunks. */
     private chunkvp!: AABB;
     /** the border on the left side between canvas and map edge. */
-    private borderleft = 70;
+    public borderleft = 70;
     /** the border on the top side between canvas and map edge. */
-    private bordertop = 50;
+    public bordertop = 50;
     /** the border on the bottom side between canvas and map edge. */
     private borderbottom = 20;
     /** the border on the left bottom between canvas and map edge. */
-    private borderright = 20;
-    private markers: Marker[] = [];
-    private canvas: HTMLCanvasElement;
-    private ctx: CanvasRenderingContext2D;
+    public borderright = 20;
+    public markers: Marker[] = [];
+    public canvas: HTMLCanvasElement;
+    public ctx: CanvasRenderingContext2D;
     private SCH: SlimeChunkHandler;
-    private config: Config;
+    public config: Config;
     private controls: Controls = undefined as any;
     /** Reference to marker automatically placed by gotoCoordinates. */
     private jumpMarker: Marker | undefined;
@@ -102,72 +97,14 @@ export class SlimeMap {
             uiBackgroundColor: "#CED4DE",
             slimeChunkColor: "#44dd55",
             markerDefaultColor: "#aa0000",
+            allowMarkers: true,
             ...config
         };
 
 
         this.canvas = this.createDOM(id);
-        window.ContextMenu.attach("#" + this.canvas.id, [], (cxm) => {
-            const coord = this.getMapCoord(this.mousePos);
-            if (coord === false) {
-                return [];
-            }
 
-            const getLabelDesc = (marker: Marker) => marker.label ? `"${marker.label}"` : `at ${JSON.stringify(marker.location)}`
-
-            const closestMarker = this.findClosestMarker(coord, 40 / this.zoom); // increase search area the further zoomed out
-            if (closestMarker) {
-                const label = getLabelDesc(closestMarker);
-                cxm = cxm.concat([
-                    {
-                        text: `Marker ${label}:`
-                    },
-                    {
-                        text: `Edit marker ${label}`,
-                        action: () => {
-                            this.showEditMarkerDialog(closestMarker, (updatedMarker) => {
-                                this.deleteMarker(closestMarker);
-                                this.addMarker(updatedMarker);
-                            });
-                        }
-                    },
-                    {
-                        text: `Delete marker ${label}`,
-                        action: () => this.deleteMarker(closestMarker)
-                    },
-                    { isDivider: true }
-                ]);
-            }
-
-            cxm = cxm.concat([
-                {
-                    text: "Add marker",
-                    action: () => {
-                        this.showEditMarkerDialog({
-                            location: coord
-                        }, (marker) => {
-                            this.addMarker(marker);
-                        });
-                    }
-                },
-                {
-                    text: "Delete all markers",
-                    action: () => {
-                        this.deleteAllMarkers();
-                    },
-                    disabled: this.markers.length === 0
-                },
-                {
-                    text: "Go to marker",
-                    subMenu: this.markers.map((marker): CTXMItem => ({
-                        text: getLabelDesc(marker),
-                        action: () => this.gotoCoordinate(marker.location)
-                    })),
-                    disabled: this.markers.length === 0
-                }
-            ]);
-            return cxm;
-        });
+        attachContextMenu(this);
 
         this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         const ctx = this.canvas.getContext("2d");
@@ -181,10 +118,10 @@ export class SlimeMap {
         this.redraw();
 
         this.canvas.onmousemove = (event: MouseEvent) => {
-            this.mousePos = { x: event.offsetX, y: event.offsetY };
+            this.mousePos = { x: event.offsetX, z: event.offsetY };
             if (event.buttons === 1) {
                 this.xPos -= event.movementX / this.zoom;
-                this.yPos -= event.movementY / this.zoom;
+                this.zPos -= event.movementY / this.zoom;
                 this.redraw();
             } else {
                 this.drawFooter();
@@ -214,7 +151,7 @@ export class SlimeMap {
             }
 
             .dialog {
-                font-family: 'Montserrat';
+                font-familz: 'Montserrat';
             }
         `;
         document.head.appendChild(style);
@@ -226,201 +163,13 @@ export class SlimeMap {
         this.redraw();
     }
 
-    public gotoCoordinate(x: number, y: number);
+    public gotoCoordinate(x: number, z: number);
     public gotoCoordinate(coordinate: Vector2D);
     public gotoCoordinate(param1: number | Vector2D, y?: number) {
-        const coordinate = this.isVector2D(param1) ? param1 : { x: param1, y: y as number };
+        const coordinate = this.isVector2D(param1) ? param1 : { x: param1, z: y as number };
         this.xPos = coordinate.x;
-        this.yPos = coordinate.y;
+        this.zPos = coordinate.z;
         this.redraw();
-    }
-
-    public addMarker(marker: Marker) {
-        this.markers.push(marker);
-        this.redraw();
-    }
-
-    public deleteAllMarkers() {
-        this.markers = [];
-        this.redraw();
-    }
-
-    public deleteMarker(index: number): boolean;
-    public deleteMarker(marker: Marker): boolean;
-    public deleteMarker(arg0: number | Marker): boolean {
-        if (typeof arg0 === "number") {
-            if (arg0 < this.markers.length) {
-                this.markers.splice(arg0, 1);
-                this.redraw();
-                return true;
-            }
-        }
-        else if (this.markers.includes(arg0)) {
-            this.markers.splice(this.markers.indexOf(arg0), 1);
-            this.redraw();
-            return true;
-        }
-        return false;
-    }
-
-    public findClosestMarker(searchPos: Vector2D, maxRadius: number = Infinity): Marker | undefined {
-        if (this.markers.length === 0) {
-            return undefined;
-        }
-        let closestMarker: Marker | undefined;
-        let closestDistance: number = Infinity;
-        this.markers.forEach(marker => {
-            //Pythagoras
-            const distance = Math.sqrt(
-                Math.pow(marker.location.x - searchPos.x, 2) +
-                Math.pow(marker.location.y - searchPos.y, 2)
-            );
-            if (distance < maxRadius && distance < closestDistance) {
-                closestDistance = distance;
-                closestMarker = marker;
-            }
-        });
-
-        return closestMarker;
-    }
-
-    private drawAllMarkers() {
-        for (const marker of this.markers) {
-            this.ctx.strokeStyle = this.config.strokeColor;
-            this.ctx.fillStyle = marker.color || this.config.markerDefaultColor;
-            this.ctx.lineWidth = 1;
-            const coord = this.getAbsCoord(marker.location, true);
-
-            const { x, y } = coord;
-
-            const size = 32;
-
-            const height = size;
-            const width = 2 * height / 3;
-
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, y);
-            this.ctx.bezierCurveTo(x - width / 8, y - width / 16 * 9, x - width / 2, y - width / 16 * 9, x - width / 2, y - width);
-            this.ctx.arcTo(x - width / 2, y - height, x, y - height, width / 2);
-            this.ctx.arcTo(x + width / 2, y - height, x + width / 2, y - width, width / 2);
-            this.ctx.bezierCurveTo(x + width / 2, y - width / 16 * 9, x + width / 8, y - width / 16 * 9, x, y);
-            this.ctx.fill();
-            this.ctx.stroke();
-
-            this.ctx.fill();
-
-            this.ctx.stroke();
-            this.ctx.closePath();
-
-            if (marker.label) {
-                this.ctx.font = "normal 15px 'Montserrat'";
-                this.ctx.textAlign = "center";
-                const textWidth = this.ctx.measureText(marker.label).width;
-                this.ctx.fillStyle = "rgba(206,212,222,0.7)";
-                this.ctx.fillRect(x - textWidth / 2 - 3, y - size - 30, textWidth + 6, 21);
-                this.ctx.fillStyle = this.config.textColor;
-                this.ctx.fillText(marker.label, x, y - size - 15);
-                this.ctx.textAlign = "left";
-            }
-        }
-    }
-
-    /**
-     * 
-     * @param marker the default marker properties
-     * @param onSubmit callback when the dialog is submitted
-     */
-    private showEditMarkerDialog(marker: Marker, onSubmit: (marker: Marker) => void) {
-        const parent = this.canvas.parentElement;
-        if (!parent) {
-            throw ("Canvas has no parent");
-        }
-
-        const popup = document.createElement("div");
-        popup.style.display = "grid";
-        popup.style.gridTemplateColumns = "auto auto";
-        popup.style.padding = "15px";
-        popup.className = "dialog";
-
-        const labelInput = document.createElement("input");
-        const labelLabel = document.createElement("label");
-        labelInput.value = marker.label || "New Marker";
-        labelLabel.innerText = "Marker Label:"
-        popup.appendChild(labelLabel);
-        popup.appendChild(labelInput);
-
-        const colorInput = document.createElement("input");
-        const colorLabel = document.createElement("label");
-        colorInput.type = "color";
-        colorInput.value = marker.color || this.config.markerDefaultColor
-        colorLabel.innerText = "Marker Color:"
-        popup.appendChild(colorLabel);
-        popup.appendChild(colorInput);
-
-        const xposInput = document.createElement("input");
-        const xPosLabel = document.createElement("label");
-        xposInput.type = "number";
-        xposInput.value = marker.location.x + "";
-        xPosLabel.innerText = "Marker X Position:"
-        popup.appendChild(xPosLabel);
-        popup.appendChild(xposInput);
-
-        const zposInput = document.createElement("input");
-        const zPosLabel = document.createElement("label");
-        zposInput.type = "number";
-        zposInput.value = marker.location.y + "";
-        zPosLabel.innerText = "Marker Z Position:"
-        popup.appendChild(zPosLabel);
-        popup.appendChild(zposInput);
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.innerText = "Cancel";
-        popup.appendChild(cancelBtn);
-
-        const submitBtn = document.createElement("button");
-        submitBtn.innerText = "Submit";
-        popup.appendChild(submitBtn);
-
-        const bounding = SlimeMap.getBounding(popup);
-
-        Object.assign<CSSStyleDeclaration, Partial<CSSStyleDeclaration>>(popup.style, {
-            position: "relative",
-            margin: "auto",
-            zIndex: "999",
-            background: this.config.uiBackgroundColor,
-            top: ((-parent.offsetHeight - bounding.height) * 0.5) + "px",
-            width: "300px",
-            boxShadow: `${this.config.strokeColor} 3px 3px 15px`,
-            left: `${this.borderleft - this.borderright}px`
-        });
-
-        parent.appendChild(popup);
-
-        submitBtn.onclick = () => {
-            parent.removeChild(popup);
-            marker = {
-                label: labelInput.value,
-                color: colorInput.value,
-                location: {
-                    x: Number(xposInput.value),
-                    y: Number(zposInput.value)
-                }
-            }
-            onSubmit(marker);
-        }
-
-        cancelBtn.onclick = () => {
-            parent.removeChild(popup);
-        }
-    }
-
-    private static getBounding(elem: HTMLElement): ClientRect | DOMRect {
-        const container = elem.cloneNode(true) as HTMLElement;
-        container.style.visibility = "hidden";
-        document.body.appendChild(container);
-        const result = container.getBoundingClientRect();
-        document.body.removeChild(container);
-        return result;
     }
 
     private loadFont() {
@@ -523,12 +272,12 @@ export class SlimeMap {
         const navButton = document.createElement("button");
         navButton.innerText = "go to coordinates";
         navButton.addEventListener("click", () => {
-            const coordinate: Vector2D = { x: Number(xInput.value), y: Number(zInput.value) };
+            const coordinate: Vector2D = { x: Number(xInput.value), z: Number(zInput.value) };
             if (this.jumpMarker) {
-                this.deleteMarker(this.jumpMarker);
+                deleteMarker(this.jumpMarker, this);
             }
-            this.jumpMarker = { location: coordinate, label: `( X: ${coordinate.x} / Z: ${coordinate.y} )` };
-            this.addMarker(this.jumpMarker);
+            this.jumpMarker = { location: coordinate, label: `( X: ${coordinate.x} / Z: ${coordinate.z} )` };
+            addMarker(this.jumpMarker, this);
             this.gotoCoordinate(coordinate);
             xInput.value = "";
             zInput.value = "";
@@ -582,10 +331,10 @@ export class SlimeMap {
                 const newPos = this.getMapCoord(this.mousePos) as Vector2D;
                 const offset = {
                     x: pos.x - newPos.x,
-                    y: pos.y - newPos.y
+                    z: pos.z - newPos.z
                 };
                 this.xPos += offset.x;
-                this.yPos += offset.y;
+                this.zPos += offset.z;
 
                 this.redraw();
             }
@@ -617,7 +366,7 @@ export class SlimeMap {
             this.clearfooter();
             this.ctx.font = "normal 15px 'Montserrat'";
             this.ctx.fillStyle = this.config.textColor;
-            this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.y.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
+            this.ctx.fillText("X: " + vec.x.toFixed(0) + "\t Z: " + vec.z.toFixed(0), this.borderleft, this.height - this.borderbottom + 15);
 
             const Chunk = this.doMath(vec, c => Math.floor(c / 16));
             const Slimes = this.SCH.isSlimeChunk(Chunk) ? "ja" : "nein";
@@ -627,9 +376,9 @@ export class SlimeMap {
             const To = this.doMath(From, c => c + 15);
 
             this.ctx.textAlign = "end";
-            this.ctx.fillText("Chunk: ( " + Chunk.x + " / " + Chunk.y + " )  im Bereich von: ( " +
-                From.x + " / " + From.y + ")  bis: ( " +
-                To.x + " / " + To.y + " )", this.width - this.borderright, this.height - this.borderbottom + 15);
+            this.ctx.fillText("Chunk: ( " + Chunk.x + " / " + Chunk.z + " )  im Bereich von: ( " +
+                From.x + " / " + From.z + ")  bis: ( " +
+                To.x + " / " + To.z + " )", this.width - this.borderright, this.height - this.borderbottom + 15);
             this.ctx.textAlign = "start";
         }
     }
@@ -639,7 +388,7 @@ export class SlimeMap {
         this.ctx.fillRect(this.borderleft - 1, this.height - this.borderbottom, this.width - this.borderleft, this.borderbottom);
     }
 
-    private redraw() {
+    public redraw() {
         this.vp = this.calcViewport();
 
         //fill map
@@ -650,7 +399,7 @@ export class SlimeMap {
         this.updateSlimeVP();
         this.drawSlimeChunks();
         this.drawGrid();
-        this.drawAllMarkers();
+        drawAllMarkers(this);
 
         this.clearBorderRight();
         this.clearfooter();
@@ -668,31 +417,31 @@ export class SlimeMap {
         this.ctx.fillStyle = this.config.slimeChunkColor;
 
         for (let x = this.chunkvp.x1; x < this.chunkvp.x2; x++) {
-            for (let y = this.chunkvp.y1; y < this.chunkvp.y2; y++) {
-                if (this.SCH.isSlimeChunk({ x, y })) {
-                    const vec = this.ChunkToCoord({ x, y });
+            for (let z = this.chunkvp.z1; z < this.chunkvp.z2; z++) {
+                if (this.SCH.isSlimeChunk({ x, z })) {
+                    const vec = this.ChunkToCoord({ x, z });
 
                     let vec2 = this.getAbsCoord(vec);
                     if (vec2) {
-                        this.ctx.fillRect(vec2.x + 1, vec2.y + 1, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        this.ctx.fillRect(vec2.x + 1, vec2.z + 1, 16 * this.zoom - 1, 16 * this.zoom - 1);
                         continue;
                     }
                     //slime chunk may be partially on map (overlap in x direction)
-                    vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y });
+                    vec2 = this.getAbsCoord({ x: vec.x + 16, z: vec.z });
                     if (vec2) {
-                        this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.z, 16 * this.zoom - 1, 16 * this.zoom - 1);
                         continue;
                     }
                     //slime chunk may be partially on map (overlap in y direction)
-                    vec2 = this.getAbsCoord({ x: vec.x, y: vec.y + 16 });
+                    vec2 = this.getAbsCoord({ x: vec.x, z: vec.z + 16 });
                     if (vec2) {
-                        this.ctx.fillRect(vec2.x, vec2.y - 16 * this.zoom, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        this.ctx.fillRect(vec2.x, vec2.z - 16 * this.zoom, 16 * this.zoom - 1, 16 * this.zoom - 1);
                         continue;
                     }
                     //slime chunk may be partially on map (overlap in both directions)
-                    vec2 = this.getAbsCoord({ x: vec.x + 16, y: vec.y + 16 });
+                    vec2 = this.getAbsCoord({ x: vec.x + 16, z: vec.z + 16 });
                     if (vec2) {
-                        this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.y - 16 * this.zoom, 16 * this.zoom - 1, 16 * this.zoom - 1);
+                        this.ctx.fillRect(vec2.x - 16 * this.zoom, vec2.z - 16 * this.zoom, 16 * this.zoom - 1, 16 * this.zoom - 1);
                         continue;
                     }
                 }
@@ -709,16 +458,16 @@ export class SlimeMap {
         //X
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
             const mark = i * factor;
-            let pos: Vector2D = { x: mark, y: this.vp.y1 };
+            let pos: Vector2D = { x: mark, z: this.vp.z1 };
             pos = this.getAbsCoord(pos, true);
             this.ctx.fillText(mark + "", pos.x - (mark.toString().length * 3), this.bordertop - 5);
         }
         //Z
-        for (let i = Math.ceil(this.vp.y1 / factor); i <= Math.floor(this.vp.y2 / factor); i++) {
+        for (let i = Math.ceil(this.vp.z1 / factor); i <= Math.floor(this.vp.z2 / factor); i++) {
             const mark = i * factor;
-            let pos: Vector2D = { x: this.vp.x1, y: mark };
+            let pos: Vector2D = { x: this.vp.x1, z: mark };
             pos = this.getAbsCoord(pos, true);
-            this.ctx.fillText(mark + "", this.borderleft - 30, pos.y + 4);
+            this.ctx.fillText(mark + "", this.borderleft - 30, pos.z + 4);
         }
     }
 
@@ -798,7 +547,7 @@ export class SlimeMap {
         for (let i = Math.ceil(this.vp.x1 / factor); i <= Math.floor(this.vp.x2 / factor); i++) {
             this.ctx.lineWidth = (i === 0) ? 0.8 : 0.5;
             const mark = i * factor;
-            let pos: Vector2D = { x: mark, y: this.vp.y1 };
+            let pos: Vector2D = { x: mark, z: this.vp.z1 };
             pos = this.getAbsCoord(pos, true);
             this.ctx.beginPath();
             this.ctx.moveTo(pos.x, this.bordertop);
@@ -807,14 +556,14 @@ export class SlimeMap {
             this.ctx.closePath();
         }
         //Z
-        for (let i = Math.ceil(this.vp.y1 / factor); i <= Math.floor(this.vp.y2 / factor); i++) {
+        for (let i = Math.ceil(this.vp.z1 / factor); i <= Math.floor(this.vp.z2 / factor); i++) {
             this.ctx.lineWidth = (i === 0) ? 0.8 : 0.5;
             const mark = i * factor;
-            let pos: Vector2D = { x: this.vp.x1, y: mark };
+            let pos: Vector2D = { x: this.vp.x1, z: mark };
             pos = this.getAbsCoord(pos, true);
             this.ctx.beginPath();
-            this.ctx.moveTo(this.borderleft, pos.y);
-            this.ctx.lineTo(this.width - this.borderright, pos.y);
+            this.ctx.moveTo(this.borderleft, pos.z);
+            this.ctx.lineTo(this.width - this.borderright, pos.z);
             this.ctx.stroke();
             this.ctx.closePath();
         }
@@ -827,34 +576,34 @@ export class SlimeMap {
 
     private isInVP(vec: Vector2D): boolean {
         return (vec.x >= this.vp.x1 && vec.x <= this.vp.x2 &&
-            vec.y >= this.vp.y1 && vec.y <= this.vp.y2);
+            vec.z >= this.vp.z1 && vec.z <= this.vp.z2);
     }
 
     private isOverMap(vec: Vector2D): boolean {
         return (
             vec.x >= this.borderleft && vec.x <= (this.width - this.borderright) &&
-            vec.y >= this.bordertop && vec.y <= (this.height - this.borderbottom));
+            vec.z >= this.bordertop && vec.z <= (this.height - this.borderbottom));
     }
 
-    private getAbsCoord(vec: Vector2D): false | Vector2D;
-    private getAbsCoord(vec: Vector2D, ignoreBorder: true): Vector2D;
-    private getAbsCoord(vec: Vector2D, ignoreBorder: boolean = false): false | Vector2D {
+    public getAbsCoord(vec: Vector2D): false | Vector2D;
+    public getAbsCoord(vec: Vector2D, ignoreBorder: true): Vector2D;
+    public getAbsCoord(vec: Vector2D, ignoreBorder: boolean = false): false | Vector2D {
         if (this.isInVP(vec) || ignoreBorder) {
             const vec2 = { ...origin };
             vec2.x = ((Math.floor(vec.x) - this.vp.x1) * this.zoom) + this.borderleft;
-            vec2.y = ((Math.floor(vec.y) - this.vp.y1) * this.zoom) + this.bordertop;
+            vec2.z = ((Math.floor(vec.z) - this.vp.z1) * this.zoom) + this.bordertop;
             return vec2;
         }
         return false;
     }
 
-    private getMapCoord(vec: Vector2D): false | Vector2D {
+    public getMapCoord(vec: Vector2D): false | Vector2D {
         if (this.isOverMap(vec)) {
             const vec2: Vector2D = { ...origin };
             vec2.x = Math.round((vec.x - this.borderleft) / this.zoom);
-            vec2.y = Math.round((vec.y - this.bordertop) / this.zoom);
+            vec2.z = Math.round((vec.z - this.bordertop) / this.zoom);
             vec2.x += this.vp.x1;
-            vec2.y += this.vp.y1;
+            vec2.z += this.vp.z1;
             return vec2;
         }
         return false;
@@ -867,9 +616,9 @@ export class SlimeMap {
         mapWidth /= this.zoom;
         mapHeight /= this.zoom;
         v.x1 = Math.floor((this.xPos - (mapWidth / 2)));
-        v.y1 = Math.floor((this.yPos - (mapHeight / 2)));
+        v.z1 = Math.floor((this.zPos - (mapHeight / 2)));
         v.x2 = Math.ceil((this.xPos + (mapWidth / 2)));
-        v.y2 = Math.ceil((this.yPos + (mapHeight / 2)));
+        v.z2 = Math.ceil((this.zPos + (mapHeight / 2)));
         return v as AABB;
     }
 
@@ -884,7 +633,7 @@ export class SlimeMap {
         if (this.isVector2D(arg)) {
             return {
                 x: this.doMath(arg.x, f),
-                y: this.doMath(arg.y, f)
+                z: this.doMath(arg.z, f)
             };
         }
         else if (this.isAABB(arg)) {
@@ -906,7 +655,7 @@ export class SlimeMap {
             return false;
         }
         const keys = Object.keys(vec);
-        return keys.length === 2 && typeof vec.x === "number" && typeof vec.y === "number";
+        return keys.length === 2 && typeof vec.x === "number" && typeof vec.z === "number";
     }
 
     private isAABB(vec: any): vec is AABB {
@@ -914,7 +663,7 @@ export class SlimeMap {
             return false;
         }
         const keys = Object.keys(vec);
-        return keys.length === 4 && typeof vec.x1 === "number" && typeof vec.y1 === "number" && typeof vec.x2 === "number" && typeof vec.y2 === "number";
+        return keys.length === 4 && typeof vec.x1 === "number" && typeof vec.z1 === "number" && typeof vec.x2 === "number" && typeof vec.z2 === "number";
     }
 
 }
