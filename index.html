@@ -7,7 +7,7 @@
     <script>
         document.addEventListener("readystatechange", function () {
             if (document.readyState === "complete") {
-                window.sm = new SlimeMap("slimemap-canvas", {
+                window.sm = new SlimeMap("slimemap", {
                     renderControls: true,
                     bottom: true
                 });
@@ -17,7 +17,7 @@
 </head>
 
 <body>
-    <canvas class="canvas" id="slimemap-canvas" width="994px" height="600px">
+    <canvas class="canvas" id="slimemap" width="994px" height="600px">
         Dein Browser unterstützt diese Funktion noch nicht. Bitte installiere die neueste Version von deinem Browser.
     </canvas>
 </body>

@@ -14,7 +14,7 @@ export class SlimeChunkHandler {
     public constructor(private seed: Long) { }
 
     public isSlimeChunk(chunk: Vector2D) {
-        const key = `[${chunk.x},${chunk.y}]`;
+        const key = `[${chunk.x},${chunk.z}]`;
         if (this.cache[key] === undefined) {
             this.cache[key] = isSlimeChunk(chunk, this.seed);
         }
@@ -29,12 +29,11 @@ export class SlimeChunkHandler {
 }
 
 export function isSlimeChunk(chunk: Vector2D, seed: Long) {
-    const xPos = chunk.x;
-    const zPos = chunk.y;
-    const tempseed = base.multiply(xPos).multiply(xPos)
-        .add(addend1.multiply(xPos))
-        .add(addend2.multiply(zPos).multiply(zPos))
-        .add(addend3.multiply(zPos))
+    const { x, z } = chunk;
+    const tempseed = base.multiply(x).multiply(x)
+        .add(addend1.multiply(x))
+        .add(addend2.multiply(z).multiply(z))
+        .add(addend3.multiply(z))
         .add(seed).xor(mask);
 
     const rnd = new NSeededRandom(tempseed);
