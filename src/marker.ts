@@ -72,6 +72,24 @@ export function attachContextMenu(sm: SlimeMap) {
         );
         return cxm;
     });
+
+
+    const style = document.createElement("style");
+    style.innerText = `
+        .ctxmenu {
+            background-color: ${sm.config.uiBackgroundColor};
+            box-shadow: 3px 3px 15px;
+        }
+
+        .ctxmenu li.disabled {
+            color: #999;
+        }
+
+        .dialog {
+            font-family: 'Montserrat';
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 export function addMarker(marker: Marker, sm: SlimeMap) {

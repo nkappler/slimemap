@@ -139,22 +139,6 @@ export class SlimeMap {
             this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         };
 
-        const style = document.createElement("style");
-        style.innerText = `
-            .ctxmenu {
-                background-color: ${this.config.uiBackgroundColor};
-                box-shadow: 3px 3px 15px;
-            }
-
-            .ctxmenu li.disabled {
-                color: #999;
-            }
-
-            .dialog {
-                font-familz: 'Montserrat';
-            }
-        `;
-        document.head.appendChild(style);
     }
 
     public setSeed(seed: string) {
