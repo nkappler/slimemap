@@ -1,4 +1,4 @@
-import "./ctxMenu.min";
+import { ctxmenu } from "ctxmenu";
 import { SlimeMap, Vector2D } from "./slimeMap";
 
 export interface Marker {
@@ -8,13 +8,13 @@ export interface Marker {
 }
 
 export function attachContextMenu(sm: SlimeMap) {
-    window.ContextMenu.attach("#" + sm.canvas.id, [], (cxm) => {
+    ctxmenu.attach("#" + sm.canvas.id, [], (cxm) => {
         const coord = sm.getMapCoord(sm.mousePos);
         if (coord === false) {
             return [];
         }
 
-        const getLabelDesc = (marker: Marker) => marker.label ? `"${marker.label}"` : `at ${JSON.stringify(marker.location)}`
+        const getLabelDesc = (marker: Marker) => marker.label ? `"${marker.label}"` : `at ${JSON.stringify(marker.location)}`;
 
         const closestMarker = findClosestMarker(coord, sm, 40 / sm.zoom); // increase search area the further zoomed out
         if (closestMarker) {
@@ -63,7 +63,7 @@ export function attachContextMenu(sm: SlimeMap) {
         }
         cxm.push({
             text: "Go to marker",
-            subMenu: sm.markers.map((marker): CTXMItem => ({
+            subMenu: sm.markers.map((marker) => ({
                 text: getLabelDesc(marker),
                 action: () => sm.gotoCoordinate(marker.location)
             })),
@@ -183,14 +183,14 @@ export function drawAllMarkers(sm: SlimeMap) {
 }
 
 /**
- * 
+ *
  * @param marker the default marker properties
  * @param onSubmit callback when the dialog is submitted
  */
 export function showEditMarkerDialog(marker: Marker, sm: SlimeMap, onSubmit: (marker: Marker) => void) {
     const parent = sm.canvas.parentElement;
     if (!parent) {
-        throw ("Canvas has no parent");
+        throw new Error("Canvas has no parent");
     }
 
     const popup = document.createElement("div");
@@ -202,15 +202,15 @@ export function showEditMarkerDialog(marker: Marker, sm: SlimeMap, onSubmit: (ma
     const labelInput = document.createElement("input");
     const labelLabel = document.createElement("label");
     labelInput.value = marker.label || "New Marker";
-    labelLabel.innerText = "Marker Label:"
+    labelLabel.innerText = "Marker Label:";
     popup.appendChild(labelLabel);
     popup.appendChild(labelInput);
 
     const colorInput = document.createElement("input");
     const colorLabel = document.createElement("label");
     colorInput.type = "color";
-    colorInput.value = marker.color || sm.config.markerDefaultColor
-    colorLabel.innerText = "Marker Color:"
+    colorInput.value = marker.color || sm.config.markerDefaultColor;
+    colorLabel.innerText = "Marker Color:";
     popup.appendChild(colorLabel);
     popup.appendChild(colorInput);
 
@@ -218,7 +218,7 @@ export function showEditMarkerDialog(marker: Marker, sm: SlimeMap, onSubmit: (ma
     const xPosLabel = document.createElement("label");
     xposInput.type = "number";
     xposInput.value = marker.location.x + "";
-    xPosLabel.innerText = "Marker X Position:"
+    xPosLabel.innerText = "Marker X Position:";
     popup.appendChild(xPosLabel);
     popup.appendChild(xposInput);
 
@@ -226,7 +226,7 @@ export function showEditMarkerDialog(marker: Marker, sm: SlimeMap, onSubmit: (ma
     const zPosLabel = document.createElement("label");
     zposInput.type = "number";
     zposInput.value = marker.location.z + "";
-    zPosLabel.innerText = "Marker Z Position:"
+    zPosLabel.innerText = "Marker Z Position:";
     popup.appendChild(zPosLabel);
     popup.appendChild(zposInput);
 
