@@ -109,7 +109,7 @@ export class SlimeMap {
         this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         const ctx = this.canvas.getContext("2d");
         this.ctx = ctx ? ctx : new CanvasRenderingContext2D();
-        this.assertEventHandlers();
+        this.addScrollHandler();
 
         this.seed = !!this.config.seed ? fromString(this.config.seed) : new Long(Date.now());
         this.SCH = new SlimeChunkHandler(this.seed);
@@ -283,7 +283,7 @@ export class SlimeMap {
         return controlsdDiv.offsetHeight;
     }
 
-    private assertEventHandlers() {
+    private addScrollHandler() {
         const mousewheelevt = (/Firefox/i.test(navigator.userAgent)) ? "DOMMouseScroll" : "mousewheel"; //FF doesn't recognize mousewheel as of FF3.x
         const evt = (e) => this.onscroll(e);
 
@@ -295,15 +295,32 @@ export class SlimeMap {
         }
     }
 
-    private onscroll(event: WheelEvent) {
+    private getScrollDirection(e: WheelEvent): null | 1 | -1 {
+        let delta: number | null = null;
+        if ((e as any).detail !== undefined && e.detail !== 0) {
+            delta = e.detail;
+        }
+        if ((e as any).deltaY !== undefined && e.deltaY !== 0) {
+            delta = -e.deltaY;
+        }
+        if ((e as any).wheelDelta !== undefined && (e as any).wheelDelta !== 0) {
+            delta = (e as any).wheelDelta;
+        }
+        return delta && delta > 0 ? 1 : -1;
+    }
+
+    private onscroll(e: WheelEvent) {
         const pos = this.getMapCoord(this.mousePos);
         if (pos) {
-            event.preventDefault();
+            e.preventDefault();
             let zoomfactor = 0.2;
             if (this.zoom < 2) {
                 zoomfactor /= 2;
             }
-            const direction = event.detail > 0 ? -1 : 1;
+            const direction = this.getScrollDirection(e);
+            if (!direction) {
+                return;
+            }
             zoomfactor *= direction;
 
             if ((this.zoom + zoomfactor) >= this.minzoom && (this.zoom + zoomfactor) <= this.maxzoom) {
@@ -653,3 +670,35 @@ export class SlimeMap {
 }
 
 (window as any).SlimeMap = SlimeMap;
+
+// Polyfill for Object.assign in IE: https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Object/assign#Polyfill
+// tslint:disable-next-line: no-unbound-method
+if (typeof (Object.assign as any) !== 'function') {
+    // Must be writable: true, enumerable: false, configurable: true
+    Object.defineProperty(Object, "assign", {
+        value: function assign(target: any, _varArgs: any) { // .length of function is 2
+            'use strict';
+            if (target == null) { // TypeError if undefined or null
+                throw new TypeError('Cannot convert undefined or null to object');
+            }
+
+            const to = Object(target);
+
+            for (let index = 1; index < arguments.length; index++) {
+                const nextSource = arguments[index];
+
+                if (nextSource != null) { // Skip over if undefined or null
+                    for (const nextKey in nextSource) {
+                        // Avoid bugs when hasOwnProperty is shadowed
+                        if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+                            to[nextKey] = nextSource[nextKey];
+                        }
+                    }
+                }
+            }
+            return to;
+        },
+        writable: true,
+        configurable: true
+    });
+}
