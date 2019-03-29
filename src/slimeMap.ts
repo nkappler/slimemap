@@ -86,6 +86,7 @@ export class SlimeMap {
     private SCH: SlimeChunkHandler;
     public config: Config;
     private controls: Controls = undefined as any;
+    private container: HTMLElement;
     /** Reference to marker automatically placed by gotoCoordinates. */
     private jumpMarker: Marker | undefined;
 
@@ -103,6 +104,7 @@ export class SlimeMap {
 
 
         this.canvas = this.createDOM(id);
+        this.container = this.canvas.parentElement as HTMLElement;
 
         attachContextMenu(this);
 
@@ -138,6 +140,11 @@ export class SlimeMap {
         this.canvas.onmouseup = (_event: MouseEvent) => {
             this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
         };
+
+        window.addEventListener("resize", () => {
+            this.updateSizes();
+            this.redraw();
+        });
 
     }
 
@@ -201,8 +208,6 @@ export class SlimeMap {
         }
 
         container.style.position = "relative";
-        canvas.width = container.offsetWidth;
-        canvas.height = container.offsetHeight;
         canvas.id = parent.id ? parent.id + "canvas" : "slimemap-canvas";
 
         if (this.config.renderControls) {
@@ -355,6 +360,9 @@ export class SlimeMap {
     }
 
     private updateSizes() {
+        const bounding = this.container.getBoundingClientRect();
+        this.canvas.width = bounding.width;
+        this.canvas.height = bounding.height;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
         this.vp = this.calcViewport();

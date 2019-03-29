@@ -5,6 +5,7 @@
     <meta charset="utf8" />
     <script src="https://nkappler.github.io/dist/sidebar/sidebar.js"></script>
     <script src="dist/slime.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu|Yatra+One" rel="stylesheet">
     <script>
         document.addEventListener("readystatechange", function () {
             if (document.readyState === "complete") {
@@ -15,12 +16,52 @@
             }
         });
     </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #CED4DE;
+            color: #444;
+            font-family: "Ubuntu";
+            font-size: 22px;
+        }
+
+        .canvas,
+        .description {
+            width: 100%;
+            max-width: 1400px;
+            margin: auto;
+            height: 800px;
+            max-height: 80%;
+        }
+
+        .description {
+            height: auto;
+        }
+
+        .canvas {
+            box-shadow: 0 0 8px -3px;
+        }
+    </style>
 </head>
 
 <body>
-    <canvas class="canvas" id="slimemap" width="994px" height="600px">
+    <canvas class="canvas" id="slimemap">
         Dein Browser unterstützt diese Funktion noch nicht. Bitte installiere die neueste Version von deinem Browser.
     </canvas>
+
+    <div class="description">
+        <h3>Hello You!</h3>
+        <p>
+            Thanks for checking out my Slime Chunk Map.<br />
+            Please be aware that this tool is still in development.
+            For now it will work best using a PC with the latest Google Chrome or Mozilla Firefox.<br />
+            If you found a bug or have suggestions, please visit <a
+                href="https://www.github.com/nkappler/slimemap/issues">the issue tracker.</a>
+        </p>
+    </div>
 </body>
 
 </html>
