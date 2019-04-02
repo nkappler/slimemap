@@ -89,6 +89,7 @@ export class SlimeMap {
     private container: HTMLElement;
     /** Reference to marker automatically placed by gotoCoordinates. */
     private jumpMarker: Marker | undefined;
+    private lastTouchPoint: Vector2D = origin;
 
     public constructor(id: string, config?: Partial<Config>) {
         this.config = {
@@ -139,6 +140,35 @@ export class SlimeMap {
 
         this.canvas.onmouseup = (_event: MouseEvent) => {
             this.canvas.setAttribute("style", "cursor: grab; cursor: -webkit-grab");
+        };
+
+        this.canvas.ontouchstart = (event: TouchEvent) => {
+            this.lastTouchPoint = {
+                x: event.touches[0].clientX,
+                z: event.touches[0].clientY
+            };
+        };
+
+        this.canvas.ontouchmove = (event: TouchEvent) => {
+            let movement: Vector2D = {
+                x: this.lastTouchPoint.x - event.touches[0].clientX,
+                z: this.lastTouchPoint.z - event.touches[0].clientY
+            };
+
+            this.lastTouchPoint = {
+                x: event.touches[0].clientX,
+                z: event.touches[0].clientY
+            };
+
+            if (!this.isOverMap(this.lastTouchPoint)) {
+                return;
+            }
+
+            movement = this.doMath(movement, x => x / this.zoom);
+            this.xPos += movement.x;
+            this.zPos += movement.z;
+            this.redraw();
+            event.preventDefault();
         };
 
         window.addEventListener("resize", () => {
@@ -559,8 +589,8 @@ export class SlimeMap {
             let pos: Vector2D = { x: mark, z: this.vp.z1 };
             pos = this.getAbsCoord(pos, true);
             this.ctx.beginPath();
-            this.ctx.moveTo(pos.x, this.bordertop);
-            this.ctx.lineTo(pos.x, this.height - this.borderbottom);
+            this.ctx.moveTo(Math.round(pos.x) + 0.5, this.bordertop); //fixes blurry lines for now
+            this.ctx.lineTo(Math.round(pos.x) + 0.5, this.height - this.borderbottom); //fixes blurry lines for now
             this.ctx.stroke();
             this.ctx.closePath();
         }
@@ -571,8 +601,8 @@ export class SlimeMap {
             let pos: Vector2D = { x: this.vp.x1, z: mark };
             pos = this.getAbsCoord(pos, true);
             this.ctx.beginPath();
-            this.ctx.moveTo(this.borderleft, pos.z);
-            this.ctx.lineTo(this.width - this.borderright, pos.z);
+            this.ctx.moveTo(this.borderleft, Math.round(pos.z) + 0.5); //fixes blurry lines for now
+            this.ctx.lineTo(this.width - this.borderright, Math.round(pos.z) + 0.5);  //fixes blurry lines for now
             this.ctx.stroke();
             this.ctx.closePath();
         }
